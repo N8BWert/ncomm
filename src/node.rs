@@ -16,7 +16,7 @@ pub mod pubsub_node;
 /// from the other blocks of code.
 /// 
 /// All Nodes need to implement the following methods, which will be called by their executor.
-pub trait Node: Send {
+pub trait Node: Send + Sync {
     // Returns the name of this node (used in testing)
     fn name(&self) -> String;
     
