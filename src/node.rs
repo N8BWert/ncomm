@@ -1,5 +1,6 @@
 pub mod basic_node;
 pub mod pubsub_node;
+pub mod clientserver_node;
 
 /// struct Node {
 ///     name/id: String/u64

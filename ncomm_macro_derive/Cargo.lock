@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "ncomm"
-version = "0.1.0"
-dependencies = [
- "ncomm_macro_derive",
-]
-
-[[package]]
 name = "ncomm_macro_derive"
 version = "0.1.0"
 dependencies = [

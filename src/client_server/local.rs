@@ -14,13 +14,13 @@ pub struct LocalServer<Req: Request, Res: Response> {
 }
 
 impl<Req: Request, Res: Response> LocalClient<Req, Res> {
-    pub fn new(req_tx: Sender<Req>, res_rx: Receiver<Res>) -> Self {
+    pub const fn new(req_tx: Sender<Req>, res_rx: Receiver<Res>) -> Self {
         Self {req_tx, res_rx }
     }
 }
 
 impl<Req: Request, Res: Response> LocalServer<Req, Res> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { req_rxs: Vec::new(), res_txs: Vec::new(), idxs: Vec::new() }
     }
 }
