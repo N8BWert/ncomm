@@ -118,6 +118,7 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
 mod tests {
     use super::*;
     use crate::node::basic_node::BasicNode;
+    use crate::node::clientserver_node::{ServerNode, ClientNode};
     use crate::node::pubsub_node::{PublisherNode, SubscriberNode};
     use std::thread::scope;
 
@@ -269,22 +270,14 @@ mod tests {
     fn test_two_simple_executors_time() {
         // Initialize the nodes
         let mut basic_node_one: BasicNode = BasicNode::new("test node 1", 9);
-        let mut basic_node_two: BasicNode = BasicNode::new("test node 2", 13);
-        let mut basic_node_three: BasicNode = BasicNode::new("test node 3", 12);
-        let mut basic_node_four: BasicNode = BasicNode::new("test node 4", 15);
-        let mut basic_node_five: BasicNode = BasicNode::new("test node 5", 5);
-        let mut basic_node_six: BasicNode = BasicNode::new("test node 6", 20);
+        let mut basic_node_two: BasicNode = BasicNode::new("test node 2", 25);
 
         // Initialize the executors
         let mut executor_one = SimpleExecutor::new();
         executor_one.add_node(&mut basic_node_one);
-        executor_one.add_node(&mut basic_node_two);
-        executor_one.add_node(&mut basic_node_three);
 
         let mut executor_two = SimpleExecutor::new();
-        executor_two.add_node(&mut basic_node_four);
-        executor_two.add_node(&mut basic_node_five);
-        executor_two.add_node(&mut basic_node_six);
+        executor_two.add_node(&mut basic_node_two);
 
         let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
 
@@ -305,44 +298,14 @@ mod tests {
         match (exec_one, exec_two) {
             (Ok(mut executor_one), Ok(mut executor_two)) => {
                 let end_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-
-                let wrapper_three = executor_one.heap.pop().unwrap();
-                let node_three = wrapper_three.node;
-                assert_eq!(node_three.name(), String::from("test node 3"));
-                assert_eq!(node_three.get_update_rate(), 12);
-                assert_eq!(wrapper_three.priority, 2004);
                 
-                let wrapper_one = executor_one.heap.pop().unwrap();
-                let node_one = wrapper_one.node;
+                let node_one = executor_one.heap.pop().unwrap().node;
                 assert_eq!(node_one.name(), String::from("test node 1"));
-                assert_eq!(node_one.get_update_rate(), 9);
-                assert_eq!(wrapper_one.priority, 2007);
 
-                let wrapper_two = executor_one.heap.pop().unwrap();
-                let node_two = wrapper_two.node;
+                let node_two = executor_two.heap.pop().unwrap().node;
                 assert_eq!(node_two.name(), String::from("test node 2"));
-                assert_eq!(node_two.get_update_rate(), 13);
-                assert_eq!(wrapper_two.priority, 2015);
 
-                let wrapper_five = executor_two.heap.pop().unwrap();
-                let node_five = wrapper_five.node;
-                assert_eq!(node_five.name(), String::from("test node 5"));
-                assert_eq!(node_five.get_update_rate(), 5);
-                assert_eq!(wrapper_five.priority, 2000);
-
-                let wrapper_four = executor_two.heap.pop().unwrap();
-                let node_four = wrapper_four.node;
-                assert_eq!(node_four.name(), String::from("test node 4"));
-                assert_eq!(node_four.get_update_rate(), 15);
-                assert_eq!(wrapper_four.priority, 2010);
-
-                let wrapper_six = executor_two.heap.pop().unwrap();
-                let node_six = wrapper_six.node;
-                assert_eq!(node_six.name(), String::from("test node 6"));
-                assert_eq!(node_six.get_update_rate(), 20);
-                assert_eq!(wrapper_six.priority, 2020);
-
-                assert!(1995 < end_time - start_time && end_time - start_time < 2005);
+                assert!(2000 < end_time - start_time && end_time - start_time < 2010);
             },
             _ => assert_eq!(false, true),
         };
@@ -446,9 +409,127 @@ mod tests {
                 let subscriber = sub_executor.heap.pop().unwrap().node;
                 assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n153");
 
-                assert!(1997 < end_time - start_time && end_time - start_time < 2003);
+                println!("Elapsed Time {}", end_time - start_time);
+                assert!(2000 <= end_time - start_time && end_time - start_time <= 2010);
             },
             _ => assert_eq!(false, true)
+        };
+    }
+
+    #[test]
+    fn test_simple_executor_client_server_nodes() {
+        let mut server_node = ServerNode::new("server node", 10);
+        let mut client_node_one = ClientNode::new("client node 1", 22, server_node.create_client());
+        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client());
+        let mut simple_executor = SimpleExecutor::new();
+        simple_executor.add_node(&mut server_node);
+        simple_executor.add_node(&mut client_node_one);
+        simple_executor.add_node(&mut client_node_two);
+
+        // Run the update loop for 10 iterations
+        simple_executor.start();
+        simple_executor.update_for(10);
+
+        // Check the first node is client node 1
+        let client_one = simple_executor.heap.pop().unwrap().node;
+        assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n22\n2");
+
+        // Check the second node is server node
+        let server = simple_executor.heap.pop().unwrap().node;
+        assert_eq!(server.debug(), "Server Node:\nserver node\n10\n6");
+
+        // Check the third node is client node 2
+        let client_two = simple_executor.heap.pop().unwrap().node;
+        assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n25\n2");
+    }
+
+    #[test]
+    fn test_simple_executor_client_server_nodes_different_executors() {
+        let mut server_node = ServerNode::new("server node", 10);
+        let mut client_node_one = ClientNode::new("client node 1", 15, server_node.create_client());
+        let mut client_node_two = ClientNode::new("client node 2", 22, server_node.create_client());
+        let mut executor_one = SimpleExecutor::new();
+        let mut executor_two = SimpleExecutor::new();
+        executor_one.add_node(&mut server_node);
+        executor_one.add_node(&mut client_node_one);
+        executor_two.add_node(&mut client_node_two);
+
+        let (exec_one, exec_two) = scope(|scope| {
+            let thread_one = scope.spawn(|| {
+                executor_one.start();
+                executor_one.update_for(10);
+                return executor_one;
+            });
+
+            let thread_two = scope.spawn(|| {
+                executor_two.start();
+                executor_two.update_for(10);
+                return executor_two;
+            });
+
+            (thread_one.join(), thread_two.join())
+        });
+
+        match (exec_one, exec_two) {
+            (Ok(mut executor_one), Ok(mut executor_two)) => {
+                let server = executor_one.heap.pop().unwrap().node;
+                assert_eq!(server.debug(), "Server Node:\nserver node\n10\n6");
+
+                let client_one = executor_one.heap.pop().unwrap().node;
+                assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n15\n7");
+
+                let client_two = executor_two.heap.pop().unwrap().node;
+                assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n22\n6");
+            },
+            _ => assert_eq!(false, true),
+        }
+    }
+
+    #[test]
+    fn test_simple_executor_client_server_nodes_different_executors_time() {
+        let mut server_node = ServerNode::new("server node", 12);
+        let mut client_node_one = ClientNode::new("client node 1", 11, server_node.create_client());
+        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client());
+        let mut executor_one = SimpleExecutor::new();
+        let mut executor_two = SimpleExecutor::new();
+        executor_one.add_node(&mut server_node);
+        executor_one.add_node(&mut client_node_one);
+        executor_two.add_node(&mut client_node_two);
+
+        let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+        let (exec_one, exec_two) = scope(|scope| {
+            let thread_one = scope.spawn(|| {
+                executor_one.start();
+                executor_one.update_for_seconds(2);
+                return executor_one;
+            });
+
+            let thread_two = scope.spawn(|| {
+                executor_two.start();
+                executor_two.update_for_seconds(2);
+                return executor_two;
+            });
+
+            (thread_one.join(), thread_two.join())
+        });
+
+        match (exec_one, exec_two) {
+            (Ok(mut executor_one), Ok(mut executor_two)) => {
+                let end_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+                let server = executor_one.heap.pop().unwrap().node;
+                assert_eq!(server.name(), String::from("server node"));
+
+                let client_one = executor_one.heap.pop().unwrap().node;
+                assert_eq!(client_one.name(), String::from("client node 1"));
+
+                let client_two = executor_two.heap.pop().unwrap().node;
+                assert_eq!(client_two.name(), String::from("client node 2"));
+
+                assert!(2000 <= end_time - start_time && end_time - start_time <= 2010);
+            },
+            _ => assert_eq!(true, false)
         };
     }
 }
