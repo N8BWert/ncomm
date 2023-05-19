@@ -1,6 +1,4 @@
-use std::sync::{mpsc, mpsc::{Sender, Receiver, TryRecvError}};
-
-use crate::node::Node;
+use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
 
 use crate::client_server::{Request, Response, Client, Server};
 
@@ -9,11 +7,10 @@ pub struct LocalClient<Req: Request, Res: Response> {
     res_rx: Receiver<Res>
 }
 
-pub struct LocalServer<'a, Req: Request, Res: Response> {
-    handler: fn(& dyn Node, Req) -> Res,
-    node: &'a dyn Node,
+pub struct LocalServer<Req: Request, Res: Response> {
     req_rxs: Vec<Receiver<Req>>,
     res_txs: Vec<Sender<Res>>,
+    idxs: Vec<usize>,
 }
 
 impl<Req: Request, Res: Response> LocalClient<Req, Res> {
@@ -22,27 +19,29 @@ impl<Req: Request, Res: Response> LocalClient<Req, Res> {
     }
 }
 
-impl<'a, Req: Request, Res: Response> LocalServer<'a, Req, Res> {
-    pub fn new(node: &'a dyn Node, handler: fn(& dyn Node, Req) -> Res) -> Self {
-        Self { node, handler, req_rxs: Vec::new(), res_txs: Vec::new() }
+impl<Req: Request, Res: Response> LocalServer<Req, Res> {
+    pub fn new() -> Self {
+        Self { req_rxs: Vec::new(), res_txs: Vec::new(), idxs: Vec::new() }
     }
 }
 
-impl<Req: Request, Res: Response> Client<Req, Res> for LocalClient<Req, Res> {
-    fn sendRequest(&self, request: Req) {
-        // TODO: handle error from send
-        self.req_tx.send(request).unwrap();
+impl<Req: Request, Res: Response> Client<Req, Res, mpsc::SendError<Req>> for LocalClient<Req, Res> {
+    fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
+        self.req_tx.send(request)
     }
 
-    fn receiveResponse(&self) -> Result<Res, TryRecvError> {
-        self.res_rx.try_recv()
+    fn receive_response(&self) -> Option<Res> {
+        if let Ok(response) = self.res_rx.try_recv() {
+            return Some(response);
+        }
+        return None;
     }
 }
 
-impl<'a, Req: Request, Res: Response> Server<Req, Res> for LocalServer<'a, Req, Res> {
+impl<'a, Req: Request, Res: Response> Server<Req, Res, mpsc::SendError<Res>> for LocalServer<Req, Res> {
     type Client = LocalClient<Req, Res>;
 
-    fn createClient(&mut self) -> LocalClient<Req, Res> {
+    fn create_client(&mut self) -> LocalClient<Req, Res> {
         let (req_tx, req_rx) = mpsc::channel();
         let (res_tx, res_rx) = mpsc::channel();
 
@@ -52,14 +51,29 @@ impl<'a, Req: Request, Res: Response> Server<Req, Res> for LocalServer<'a, Req, 
         return LocalClient::new(req_tx, res_rx);
     }
 
-    fn handleRequests(&self) {
+    fn get_requests(&mut self) -> Vec<Req> {
+        let mut idxs = Vec::new();
+        let mut requests = Vec::new();
+
         for i in 0..self.req_rxs.len() {
             if let Ok(request) = self.req_rxs[i].try_recv() {
-                let response = (self.handler)(self.node, request);
-                // TODO: handle errors with sending
-                self.res_txs[i].send(response);
+                idxs.push(i);
+                requests.push(request);
             }
         }
+        
+        self.idxs = idxs;
+        return requests;
+    }
+
+    fn send_responses(&self, responses: Vec<Res>) -> Vec<Result<(), mpsc::SendError<Res>>> {
+        let mut errors = Vec::new();
+
+        for (i, idx) in self.idxs.iter().enumerate() {
+            errors.push(self.res_txs[self.idxs[*idx]].send(responses[i].clone()));
+        }
+
+        return errors;
     }
 }
 
@@ -67,7 +81,7 @@ impl<'a, Req: Request, Res: Response> Server<Req, Res> for LocalServer<'a, Req, 
 mod tests {
     use super::*;
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestRequest {
         data: u8
     }
@@ -78,72 +92,50 @@ mod tests {
     }
     impl Request for TestRequest {}
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestResponse {
         data: u8
     }
+    impl TestResponse {
+        pub const fn new(data: u8) -> Self {
+            Self { data }
+        }
+    }
     impl Response for TestResponse {}
-
-    struct TestServerNode<'a> {
-        name: &'a str,
-        update_rate: u128,
-        num: u8,
-    }
-
-    impl<'a> TestServerNode<'a> {
-        pub fn new(num: u8) -> Self {
-            Self { name: "test server node", update_rate: 0, num }
-        }
-
-        pub fn add_num_handler(&self, value: TestRequest) -> TestResponse {
-            TestResponse {data: value.data + self.num }
-        }
-    }
-
-    impl<'a> Node for TestServerNode<'a> {
-        fn name(&self) -> String {
-            String::from(self.name)
-        }
-
-        fn start(&mut self) {}
-
-        fn update(&mut self) {}
-
-        fn get_update_rate(&self) -> u128 {
-            self.update_rate
-        }
-
-        fn shutdown(&mut self) {}
-
-        fn debug(&self) -> String {
-            format!("Test Server Node:\n{}\n", self.num)
-        }
-    }
 
     #[test]
     fn test_create_client_server() {
-        let testNode = TestServerNode::new(10);
-        let mut testServer: LocalServer<_, _> = LocalServer::new(&testNode, testNode.add_num_handler);
-        let mut testClient: LocalClient<_, _> = testServer.createClient();
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let _: LocalClient<TestRequest, TestResponse> = test_server.create_client();
         
-        assert!(testServer.req_rxs.len() == 1);
-        assert!(testServer.res_txs.len() == 1);
-        assert_eq!(testServer.node, testNode);
+        assert_eq!(test_server.req_rxs.len(), 1);
+        assert_eq!(test_server.res_txs.len(), 1);
     }
 
     #[test]
     fn test_send_data_client_server() {
-        let testNode = TestServerNode::new(10);
-        let mut testServer = LocalServer::new(&testNode, testNode.add_num_handler);
-        let mut testClient = testServer.createClient();
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client: LocalClient<TestRequest, TestResponse> = test_server.create_client();
 
         let request = TestRequest::new(7);
-        testClient.sendRequest(request);
-        testServer.handleRequests();
-        if let Ok(response) = testClient.receiveResponse() {
-            assert_eq!(response.data, 17);
-        } else {
-            assert!(false);
-        }
+        let err = test_client.send_request(request);
+        assert_eq!(Ok(()), err);
+
+        let requests = test_server.get_requests();
+        test_server.send_responses(vec!(TestResponse::new(requests[0].data + 1)));
+
+        let response = test_client.receive_response();
+
+        assert_eq!(response.unwrap().data, 8);
+    }
+
+    #[test]
+    fn test_server_receive_data_dne() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client = test_server.create_client();
+
+        let response = test_client.receive_response();
+        
+        assert_eq!(response, None);
     }
 }

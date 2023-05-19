@@ -1,21 +1,23 @@
-use std::sync::mpsc::TryRecvError;
+use std::error::Error;
 
 pub mod local;
 
-pub trait Request: PartialEq + Send {}
+pub trait Request: PartialEq + Send + Clone {}
 
-pub trait Response: PartialEq + Send {}
+pub trait Response: PartialEq + Send + Clone {}
 
-pub trait Client<Req: Request, Res: Response>: Send {
-    fn sendRequest(&self, request: Req);
+pub trait Client<Req: Request, Res: Response, SendErr: Error>: Send {
+    fn send_request(&self, request: Req) -> Result<(), SendErr>;
 
-    fn receiveResponse(&self) -> Result<Res, TryRecvError>;
+    fn receive_response(&self) -> Option<Res>;
 }
 
-pub trait Server<Req: Request, Res: Response>: Send {
+pub trait Server<Req: Request, Res: Response, SendErr: Error>: Send {
     type Client;
 
-    fn createClient(&mut self) -> Self::Client;
+    fn create_client(&mut self) -> Self::Client;
 
-    fn handleRequests(&self);
+    fn get_requests(&mut self) -> Vec<Req>;
+
+    fn send_responses(&self, responses: Vec<Res>) -> Vec<Result<(), SendErr>>;
 }

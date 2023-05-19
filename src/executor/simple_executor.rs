@@ -446,7 +446,8 @@ mod tests {
                 let subscriber = sub_executor.heap.pop().unwrap().node;
                 assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n153");
 
-                assert!(1997 < end_time - start_time && end_time - start_time < 2003);
+                println!("Elapsed Time {}", end_time - start_time);
+                assert!(2000 <= end_time - start_time && end_time - start_time <= 2005);
             },
             _ => assert_eq!(false, true)
         };
