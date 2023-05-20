@@ -1,6 +1,6 @@
-use std::error::Error;
-
 pub mod local;
+
+use std::error::Error;
 
 pub trait Request: PartialEq + Send + Clone {}
 

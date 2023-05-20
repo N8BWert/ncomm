@@ -38,7 +38,7 @@ impl<Req: Request, Res: Response> Client<Req, Res, mpsc::SendError<Req>> for Loc
     }
 }
 
-impl<'a, Req: Request, Res: Response> Server<Req, Res, mpsc::SendError<Res>> for LocalServer<Req, Res> {
+impl<Req: Request, Res: Response> Server<Req, Res, mpsc::SendError<Res>> for LocalServer<Req, Res> {
     type Client = LocalClient<Req, Res>;
 
     fn create_client(&mut self) -> LocalClient<Req, Res> {
@@ -80,8 +80,9 @@ impl<'a, Req: Request, Res: Response> Server<Req, Res, mpsc::SendError<Res>> for
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ncomm_macro_derive::{Request, Response};
 
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(PartialEq, Clone, Request, Debug)]
     struct TestRequest {
         data: u8
     }
@@ -90,9 +91,8 @@ mod tests {
             Self { data }
         }
     }
-    impl Request for TestRequest {}
 
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(PartialEq, Clone, Response, Debug)]
     struct TestResponse {
         data: u8
     }
@@ -101,7 +101,6 @@ mod tests {
             Self { data }
         }
     }
-    impl Response for TestResponse {}
 
     #[test]
     fn test_create_client_server() {
