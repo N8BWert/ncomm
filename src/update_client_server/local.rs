@@ -1,8 +1,16 @@
-use std::sync::{mpsc, mpsc::{Sender, Receiver}};
+use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
+use std::collections::HashMap;
 
 use crate::client_server::{Request, Response};
 
 use crate::update_client_server::{UpdateMessage, UpdateClient, UpdateServer};
+
+#[derive(PartialEq, Debug)]
+enum SendError<T> {
+    NoError(String),
+    ClientNotFound(String),
+    SendIncomplete((String, mpsc::SendError<T>)),
+}
 
 pub struct LocalUpdateClient<Req: Request, Updt: UpdateMessage, Res: Response> {
     req_tx: Sender<Req>,
@@ -10,11 +18,14 @@ pub struct LocalUpdateClient<Req: Request, Updt: UpdateMessage, Res: Response> {
     res_rx: Receiver<Res>,
 }
 
+struct LocalUpdateServerChannels<Req: Request, Updt: UpdateMessage, Res: Response> {
+    req_rx: Receiver<Req>,
+    updt_tx: Sender<Updt>,
+    res_tx: Sender<Res>,
+}
+
 pub struct LocalUpdateServer<Req: Request, Updt: UpdateMessage, Res: Response> {
-    req_rxs: Vec<Receiver<Req>>,
-    updt_txs: Vec<Sender<Updt>>,
-    res_txs: Vec<Sender<Res>>,
-    idxs: Vec<usize>,
+    client_mappings: HashMap<String, LocalUpdateServerChannels<Req, Updt, Res>>,
 }
 
 impl<Req: Request, Updt: UpdateMessage, Res: Response> LocalUpdateClient<Req, Updt, Res> {
@@ -23,9 +34,15 @@ impl<Req: Request, Updt: UpdateMessage, Res: Response> LocalUpdateClient<Req, Up
     }
 }
 
+impl<Req: Request, Updt: UpdateMessage, Res: Response> LocalUpdateServerChannels<Req, Updt, Res> {
+    pub const fn new(req_rx: Receiver<Req>, updt_tx: Sender<Updt>, res_tx: Sender<Res>) -> Self {
+        Self { req_rx, updt_tx, res_tx }
+    }
+}
+
 impl<Req: Request, Updt: UpdateMessage, Res: Response> LocalUpdateServer<Req, Updt, Res> {
-    pub const fn new() -> Self {
-        Self{ req_rxs: Vec::new(), updt_txs: Vec::new(), res_txs: Vec::new(), idxs: Vec::new() }
+    pub fn new() -> Self {
+        Self { client_mappings: HashMap::new() }
     }
 }
 
@@ -35,84 +52,433 @@ impl<Req: Request, Updt: UpdateMessage, Res: Response> UpdateClient<Req, Updt, R
     }
 
     fn receive_update(&self) -> Option<Updt> {
-        if let Ok(update) = self.updt_rx.try_recv() {
+        let iter = self.updt_rx.try_iter();
+
+        if let Some(update) = iter.last() {
             return Some(update);
         }
         return None;
     }
 
     fn receive_response(&self) -> Option<Res> {
-        if let Ok(response) = self.res_rx.try_recv() {
+        let iter = self.res_rx.try_iter();
+
+        if let Some(response) = iter.last() {
             return Some(response);
         }
         return None;
     }
 }
 
-impl<Req: Request, Updt: UpdateMessage, Res: Response> UpdateServer<Req, Updt, Res, mpsc::SendError<Updt>, mpsc::SendError<Res>> for LocalUpdateServer<Req, Updt, Res> {
+impl<Req: Request, Updt: UpdateMessage, Res: Response> UpdateServer<Req, Updt, Res, SendError<Updt>, SendError<Res>> for LocalUpdateServer<Req, Updt, Res> {
     type Client = LocalUpdateClient<Req, Updt, Res>;
 
-    fn create_client(&mut self) -> Self::Client {
+    fn create_client(&mut self, client_name: String) -> Self::Client {
         let (req_tx, req_rx) = mpsc::channel();
         let (updt_tx, updt_rx) = mpsc::channel();
         let (res_tx, res_rx) = mpsc::channel();
 
-        self.req_rxs.push(req_rx);
-        self.updt_txs.push(updt_tx);
-        self.res_txs.push(res_tx);
+        let channels = LocalUpdateServerChannels::new(req_rx, updt_tx, res_tx);
+        self.client_mappings.insert(client_name, channels);
 
         return LocalUpdateClient::new(req_tx, updt_rx, res_rx);
     }
 
-    fn get_request(&mut self) -> Vec<Req> {
-        let mut idxs = Vec::new();
+    fn receive_requests(&self) -> Vec<(String, Req)> {
         let mut requests = Vec::new();
 
-        for i in 0..self.req_rxs.len() {
-            if let Ok(request) = self.req_rxs[i].try_recv() {
-                idxs.push(i);
-                requests.push(request);
+        for (client, channels) in self.client_mappings.iter() {
+            let iter = channels.req_rx.try_iter();
+            if let Some(request) = iter.last() {
+                requests.push((client.clone(), request));
             }
         }
 
-        let mut merged_idxs = Vec::with_capacity(idxs.len() + self.idxs.len());
-        while idxs.len() > 0 && self.idxs.len() > 0 {
-            if idxs.first() > self.idxs.first() {
-                merged_idxs.push(idxs.pop().unwrap());
-            } else if idxs.first() < self.idxs.first() {
-                merged_idxs.push(self.idxs.pop().unwrap());
-            } else {
-                if let Some(idx) = idxs.pop() {
-                    merged_idxs.push(idx);
-                } else if let Some(idx) = self.idxs.pop() {
-                    merged_idxs.push(idx);
-                }
-            }
-        }
-
-        self.idxs = merged_idxs;
         return requests;
     }
 
-    fn send_updates(&self, updates: Vec<Updt>) -> Vec<Result<(), mpsc::SendError<Updt>>> {
-        let mut errors = Vec::new();
+    fn send_update(&self, client: String, update: Updt) -> SendError<Updt> {
+        if let Some(channels) = self.client_mappings.get(&client) {
+            if let Err(send_err) = channels.updt_tx.send(update) {
+                return SendError::<Updt>::SendIncomplete((client, send_err));
+            } else {
+                return SendError::<Updt>::NoError(client);
+            }
+        } else {
+            return SendError::<Updt>::ClientNotFound(client);
+        }
+    }
 
-        for (i, idx) in self.idxs.iter().enumerate() {
-            errors.push(self.updt_txs[self.idxs[*idx]].send(updates[i].clone()));
+    fn send_updates(&self, updates: Vec<(String, Updt)>) -> Vec<SendError<Updt>> {
+        let mut errors = Vec::with_capacity(updates.len());
+
+        for (client, update) in updates {
+            if let Some(channels) = self.client_mappings.get(&client) {
+                if let Err(send_err) = channels.updt_tx.send(update) {
+                    errors.push(SendError::<Updt>::SendIncomplete((client, send_err)));
+                } else {
+                    errors.push(SendError::<Updt>::NoError(client));
+                }
+            } else {
+                errors.push(SendError::<Updt>::ClientNotFound(client));
+            }
         }
 
         return errors;
     }
 
-    fn send_responses(&mut self, responses: Vec<Res>) -> Vec<Result<(), mpsc::SendError<Res>>> {
-        let mut errors = Vec::new();
+    fn send_response(&self, client: String, response: Res) -> SendError<Res> {
+        if let Some(channels) = self.client_mappings.get(&client) {
+            if let Err(send_err) = channels.res_tx.send(response) {
+                return SendError::<Res>::SendIncomplete((client, send_err));
+            } else {
+                return SendError::<Res>::NoError(client);
+            }
+        } else {
+            return SendError::<Res>::ClientNotFound(client);
+        }
+    }
 
-        for (i, idx) in self.idxs.iter().enumerate() {
-            errors.push(self.res_txs[self.idxs[*idx]].send(responses[i].clone()));
+    fn send_responses(&self, responses: Vec<(String, Res)>) -> Vec<SendError<Res>> {
+        let mut errors = Vec::with_capacity(responses.len());
+
+        for (client, response) in responses {
+            if let Some(channels) = self.client_mappings.get(&client) {
+                if let Err(send_err) = channels.res_tx.send(response) {
+                    errors.push(SendError::<Res>::SendIncomplete((client, send_err)));
+                } else {
+                    errors.push(SendError::<Res>::NoError(client));
+                }
+            } else {
+                errors.push(SendError::ClientNotFound(client));
+            }
         }
 
-        self.idxs = Vec::new();
-        
         return errors;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ncomm_macro_derive::{Request, Response, UpdateMessage};
+
+    #[derive(PartialEq, Clone, Request, Debug)]
+    struct TestRequest {
+        data: u8
+    }
+    impl TestRequest {
+        pub const fn new(data: u8) -> Self {
+            Self { data }
+        }
+    }
+
+    #[derive(PartialEq, Clone, UpdateMessage, Debug)]
+    struct TestUpdate {
+        data: u8
+    }
+    impl TestUpdate {
+        pub const fn new(data: u8) -> Self {
+            Self { data }
+        }
+    }
+
+    #[derive(PartialEq, Clone, Response, Debug)]
+    struct TestResponse {
+        data: u8
+    }
+    impl TestResponse {
+        pub const fn new(data: u8) -> Self {
+            Self { data }
+        }
+    }
+
+    #[test]
+    fn test_create_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let _ = test_server.create_client(String::from("test client"));
+
+        assert_eq!(test_server.client_mappings.len(), 1);
+    }
+
+    #[test]
+    fn test_send_request_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let request = TestRequest::new(7);
+        let err = test_client.send_request(request);
+        assert_eq!(Ok(()), err);
+
+        let requests = test_server.receive_requests();
+        assert_eq!(requests[0].0, String::from("test client"));
+        assert_eq!(requests[0].1.data, 7);
+    }
+    #[test]
+    fn test_send_multiple_requests_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let request_one = TestRequest::new(7);
+        let err = test_client_one.send_request(request_one);
+        assert_eq!(err, Ok(()));
+
+        let request_two = TestRequest::new(8);
+        let err = test_client_two.send_request(request_two);
+        assert_eq!(err, Ok(()));
+
+        let requests = test_server.receive_requests();
+
+        match requests[0].0.as_str() {
+            "test client one" => assert_eq!(requests[0].1.data, 7),
+            "test client two" => assert_eq!(requests[0].1.data, 8),
+            _ => assert_eq!(true, false),
+        };
+
+        match requests[1].0.as_str() {
+            "test client one" => assert_eq!(requests[1].1.data, 7),
+            "test client two" => assert_eq!(requests[1].1.data, 8),
+            _ => assert_eq!(true, false),
+        };
+    }
+
+    #[test]
+    fn test_send_many_requests_from_same_client_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_client.send_request(TestRequest::new(7));
+        assert_eq!(err, Ok(()));
+
+        let err = test_client.send_request(TestRequest::new(8));
+        assert_eq!(err, Ok(()));
+
+        let err = test_client.send_request(TestRequest::new(9));
+        assert_eq!(err, Ok(()));
+
+        let requests = test_server.receive_requests();
+        assert_eq!(requests[0].0, String::from("test client"));
+        assert_eq!(requests[0].1.data, 9);
+    }
+
+    #[test]
+    fn test_send_update_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_update(String::from("test client"), TestUpdate::new(7));
+        assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
+
+        let update = test_client.receive_update();
+        assert_eq!(update.unwrap().data, 7);
+    }
+
+    #[test]
+    fn test_receive_empty_update_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let update = test_client.receive_update();
+        assert_eq!(None, update);
+    }
+
+    #[test]
+    fn test_send_multiple_updates_to_same_client_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_update(String::from("test client"), TestUpdate::new(7));
+        assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
+
+        let err = test_server.send_update(String::from("test client"), TestUpdate::new(8));
+        assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
+
+        let err = test_server.send_update(String::from("test client"), TestUpdate::new(9));
+        assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
+
+        let update = test_client.receive_update();
+        assert_eq!(update.unwrap().data, 9);
+    }
+
+    #[test]
+    fn test_send_updates_to_multiple_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let update_one = TestUpdate::new(7);
+        let update_two = TestUpdate::new(8);
+        
+        let errs = test_server.send_updates(vec![
+            (String::from("test client one"), update_one),
+            (String::from("test client two"), update_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestUpdate>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestUpdate>::NoError(String::from("test client two")));
+
+        let update_one = test_client_one.receive_update();
+        assert_eq!(update_one.unwrap().data, 7);
+
+        let update_two = test_client_two.receive_update();
+        assert_eq!(update_two.unwrap().data, 8);
+    }
+
+    #[test]
+    fn test_send_multiple_updates_to_multiple_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let update_one = TestUpdate::new(7);
+        let update_two = TestUpdate::new(8);
+        let update_three = TestUpdate::new(9);
+        let update_four = TestUpdate::new(10);
+
+        let errs = test_server.send_updates(vec![
+            (String::from("test client one"), update_one),
+            (String::from("test client two"), update_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestUpdate>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestUpdate>::NoError(String::from("test client two")));
+
+        let errs = test_server.send_updates(vec![
+            (String::from("test client one"), update_three),
+            (String::from("test client two"), update_four),
+        ]);
+        assert_eq!(errs[0], SendError::<TestUpdate>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestUpdate>::NoError(String::from("test client two")));
+
+        let update_three = test_client_one.receive_update();
+        assert_eq!(update_three.unwrap().data, 9);
+        
+        let update_four = test_client_two.receive_update();
+        assert_eq!(update_four.unwrap().data, 10);
+    }
+
+    #[test]
+    fn test_send_update_to_one_of_many_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let _ = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let update_one = TestUpdate::new(7);
+
+        let errs = test_server.send_updates(vec![(String::from("test client two"), update_one)]);
+        assert_eq!(errs[0], SendError::<TestUpdate>::NoError(String::from("test client two")));
+
+        let update_one = test_client_two.receive_update();
+        assert_eq!(update_one.unwrap().data, 7);
+    }
+
+    // BEGIN RESPONSE TESTING //
+
+    #[test]
+    fn test_send_response_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(7));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let response = test_client.receive_response();
+        assert_eq!(response.unwrap().data, 7);
+    }
+
+    #[test]
+    fn test_receive_empty_response_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let response = test_client.receive_response();
+        assert_eq!(None, response);
+    }
+
+    #[test]
+    fn test_send_multiple_responses_to_same_client_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(7));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(8));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(9));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let response = test_client.receive_response();
+        assert_eq!(response.unwrap().data, 9);
+    }
+
+    #[test]
+    fn test_send_responses_to_multiple_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+        let response_two = TestResponse::new(8);
+        
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_one),
+            (String::from("test client two"), response_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_one = test_client_one.receive_response();
+        assert_eq!(response_one.unwrap().data, 7);
+
+        let response_two = test_client_two.receive_response();
+        assert_eq!(response_two.unwrap().data, 8);
+    }
+
+    #[test]
+    fn test_send_multiple_responses_to_multiple_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+        let response_two = TestResponse::new(8);
+        let response_three = TestResponse::new(9);
+        let response_four = TestResponse::new(10);
+
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_one),
+            (String::from("test client two"), response_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_three),
+            (String::from("test client two"), response_four),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_three = test_client_one.receive_response();
+        assert_eq!(response_three.unwrap().data, 9);
+        
+        let response_four = test_client_two.receive_response();
+        assert_eq!(response_four.unwrap().data, 10);
+    }
+
+    #[test]
+    fn test_send_response_to_one_of_many_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let _ = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+
+        let errs = test_server.send_responses(vec![(String::from("test client two"), response_one)]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_one = test_client_two.receive_response();
+        assert_eq!(response_one.unwrap().data, 7);
     }
 }
