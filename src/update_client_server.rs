@@ -4,9 +4,9 @@ use std::error::Error;
 
 use crate::client_server::{Request, Response};
 
-pub trait UpdateMessage: PartialEq + Send + Clone {}
+pub trait Update: PartialEq + Send + Clone {}
 
-pub trait UpdateClient<Req: Request, Updt: UpdateMessage, Res: Response, SendErr: Error>: Send {
+pub trait UpdateClient<Req: Request, Updt: Update, Res: Response, SendErr: Error>: Send {
     fn send_request(&self, request: Req) -> Result<(), SendErr>;
 
     fn receive_update(&self) -> Option<Updt>;
@@ -14,7 +14,7 @@ pub trait UpdateClient<Req: Request, Updt: UpdateMessage, Res: Response, SendErr
     fn receive_response(&self) -> Option<Res>;
 }
 
-pub trait UpdateServer<Req: Request, Updt: UpdateMessage, Res: Response, UpdtErr, ResErr>: Send {
+pub trait UpdateServer<Req: Request, Updt: Update, Res: Response, UpdtErr, ResErr>: Send {
     type Client;
 
     fn create_client(&mut self, client_name: String) -> Self::Client;

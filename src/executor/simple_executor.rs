@@ -118,7 +118,7 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
 mod tests {
     use super::*;
     use crate::node::basic_node::BasicNode;
-    use crate::node::clientserver_node::{ServerNode, ClientNode};
+    use crate::node::client_server_node::{ServerNode, ClientNode};
     use crate::node::pubsub_node::{PublisherNode, SubscriberNode};
     use std::thread::scope;
 
