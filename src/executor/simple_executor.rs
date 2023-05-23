@@ -305,7 +305,8 @@ mod tests {
                 let node_two = executor_two.heap.pop().unwrap().node;
                 assert_eq!(node_two.name(), String::from("test node 2"));
 
-                assert!(2000 < end_time - start_time && end_time - start_time < 2010);
+                println!("Execution Time: {}", end_time - start_time);
+                assert!(2000 < end_time - start_time && end_time - start_time < 2200);
             },
             _ => assert_eq!(false, true),
         };

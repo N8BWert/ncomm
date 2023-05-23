@@ -6,7 +6,7 @@ use crate::client_server::{Request, Response};
 use crate::update_client_server::{Update, UpdateClient, UpdateServer};
 
 #[derive(PartialEq, Debug)]
-enum SendError<T> {
+pub enum SendError<T> {
     NoError(String),
     ClientNotFound(String),
     SendIncomplete((String, mpsc::SendError<T>)),
@@ -82,6 +82,16 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, Sen
         self.client_mappings.insert(client_name, channels);
 
         return LocalUpdateClient::new(req_tx, updt_rx, res_rx);
+    }
+
+    fn get_clients(&self) -> Vec<String> {
+        let mut clients = Vec::with_capacity(self.client_mappings.len());
+
+        for (client, _) in self.client_mappings.iter() {
+            clients.push(client.clone());
+        }
+
+        return clients;
     }
 
     fn receive_requests(&self) -> Vec<(String, Req)> {
@@ -199,6 +209,17 @@ mod tests {
         let _ = test_server.create_client(String::from("test client"));
 
         assert_eq!(test_server.client_mappings.len(), 1);
+    }
+
+    #[test]
+    fn test_get_clients_update_client_server() {
+        let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
+        let _ = test_server.create_client(String::from("test client one"));
+        let _ = test_server.create_client(String::from("test client two"));
+        let _ = test_server.create_client(String::from("test client three"));
+
+        let clients = test_server.get_clients();
+        assert_eq!(clients.len(), 3);
     }
 
     #[test]

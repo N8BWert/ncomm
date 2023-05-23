@@ -19,6 +19,8 @@ pub trait UpdateServer<Req: Request, Updt: Update, Res: Response, UpdtErr, ResEr
 
     fn create_client(&mut self, client_name: String) -> Self::Client;
 
+    fn get_clients(&self) -> Vec<String>;
+
     fn receive_requests(&self) -> Vec<(String, Req)>;
 
     fn send_update(&self, client: String, update: Updt) -> UpdtErr;
