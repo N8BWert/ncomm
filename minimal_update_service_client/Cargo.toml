@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ncomm = { path = "../ncomm" }
-ncomm_macro_derive = { path = "../ncomm/ncomm_macro_derive" }
+ncomm = { path = "../" }
+ncomm_macro_derive = { path = "../ncomm_macro_derive" }
