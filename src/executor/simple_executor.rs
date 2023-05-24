@@ -65,7 +65,6 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
         let start_time = self.start_time + self.heap.peek().unwrap().priority;
         if start_time > current_time {
             let sleep_time = start_time - current_time;
-            println!("sleeping for {} milliseconds", sleep_time);
             thread::sleep(Duration::from_millis(sleep_time as u64));
         }
 
