@@ -1,6 +1,7 @@
 pub mod basic_node;
 pub mod pubsub_node;
-pub mod clientserver_node;
+pub mod client_server_node;
+pub mod update_client_server_node;
 
 /// struct Node {
 ///     name/id: String/u64
