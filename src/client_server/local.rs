@@ -37,7 +37,7 @@ impl<Req: Request, Res: Response> LocalServerChannels<Req, Res> {
 }
 
 impl<Req: Request, Res: Response> LocalServer<Req, Res> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
 }
@@ -48,7 +48,9 @@ impl<Req: Request, Res: Response> Client<Req, Res, mpsc::SendError<Req>> for Loc
     }
 
     fn receive_response(&self) -> Option<Res> {
-        if let Ok(response) = self.res_rx.try_recv() {
+        let iter = self.res_rx.try_iter();
+
+        if let Some(response) = iter.last() {
             return Some(response);
         }
         return None;
@@ -84,7 +86,7 @@ impl<Req: Request, Res: Response> Server<Req, Res, SendError<Res>> for LocalServ
         for (client, channels) in self.client_mappings.iter() {
             let iter = channels.req_rx.try_iter();
             if let Some(request) = iter.last() {
-                requests.push((*client, request));
+                requests.push((client.clone(), request));
             }
         }
 
@@ -150,36 +152,193 @@ mod tests {
     #[test]
     fn test_create_client_server() {
         let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
-        let _: LocalClient<TestRequest, TestResponse> = test_server.create_client();
-        
-        assert_eq!(test_server.req_rxs.len(), 1);
-        assert_eq!(test_server.res_txs.len(), 1);
+        let _: LocalClient<TestRequest, TestResponse> = test_server.create_client(String::from("test client"));
+
+        assert_eq!(test_server.client_mappings.len(), 1);
     }
 
     #[test]
-    fn test_send_data_client_server() {
+    fn test_get_clients_client_server() {
         let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
-        let test_client: LocalClient<TestRequest, TestResponse> = test_server.create_client();
+        let _ = test_server.create_client(String::from("test client one"));
+        let _ = test_server.create_client(String::from("test client two"));
+        let _ = test_server.create_client(String::from("test client three"));
+
+        let clients = test_server.get_clients();
+        assert_eq!(clients.len(), 3);
+    }
+
+    #[test]
+    fn test_send_request_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
 
         let request = TestRequest::new(7);
         let err = test_client.send_request(request);
         assert_eq!(Ok(()), err);
 
-        let requests = test_server.get_requests();
-        test_server.send_responses(vec!(TestResponse::new(requests[0].data + 1)));
+        let requests = test_server.receive_requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].0, String::from("test client"));
+        assert_eq!(requests[0].1.data, 7);
+    }
+
+    #[test]
+    fn test_send_multiple_requests_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let request_one = TestRequest::new(7);
+        let err = test_client_one.send_request(request_one);
+        assert_eq!(err, Ok(()));
+
+        let request_two = TestRequest::new(8);
+        let err = test_client_two.send_request(request_two);
+        assert_eq!(err, Ok(()));
+
+        let requests = test_server.receive_requests();
+        assert_eq!(requests.len(), 2);
+
+        match requests[0].0.as_str() {
+            "test client one" => assert_eq!(requests[0].1.data, 7),
+            "test client two" => assert_eq!(requests[0].1.data, 8),
+            _ => assert_eq!(true, false),
+        };
+
+        match requests[1].0.as_str() {
+            "test client one" => assert_eq!(requests[1].1.data, 7),
+            "test client two" => assert_eq!(requests[1].1.data, 8),
+            _ => assert_eq!(true, false),
+        };
+    }
+
+    #[test]
+    fn test_send_many_requests_from_same_client_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_client.send_request(TestRequest::new(7));
+        assert_eq!(err, Ok(()));
+
+        let err = test_client.send_request(TestRequest::new(8));
+        assert_eq!(err, Ok(()));
+
+        let err = test_client.send_request(TestRequest::new(9));
+        assert_eq!(err, Ok(()));
+
+        let requests = test_server.receive_requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].0, String::from("test client"));
+        assert_eq!(requests[0].1.data, 9);
+    }
+
+    #[test]
+    fn test_send_response_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(8));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
 
         let response = test_client.receive_response();
-
         assert_eq!(response.unwrap().data, 8);
     }
 
     #[test]
-    fn test_server_receive_data_dne() {
+    fn test_receive_empty_response_client_server() {
         let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
-        let test_client = test_server.create_client();
+        let test_client = test_server.create_client(String::from("test client"));
 
         let response = test_client.receive_response();
-        
         assert_eq!(response, None);
+    }
+
+    #[test]
+    fn test_send_multiple_responses_to_same_client_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client = test_server.create_client(String::from("test client"));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(7));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(8));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let err = test_server.send_response(String::from("test client"), TestResponse::new(9));
+        assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
+
+        let response = test_client.receive_response();
+        assert_eq!(response.unwrap().data, 9);
+    }
+
+    #[test]
+    fn test_send_responses_to_multiple_clients_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+        let response_two = TestResponse::new(8);
+
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_one),
+            (String::from("test client two"), response_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_one = test_client_one.receive_response();
+        assert_eq!(response_one.unwrap().data, 7);
+
+        let response_two = test_client_two.receive_response();
+        assert_eq!(response_two.unwrap().data, 8);
+    }
+
+    #[test]
+    fn test_send_multiple_responses_to_multiple_clients_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let test_client_one = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+        let response_two = TestResponse::new(8);
+        let response_three = TestResponse::new(9);
+        let response_four = TestResponse::new(10);
+
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_one),
+            (String::from("test client two"), response_two),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let errs = test_server.send_responses(vec![
+            (String::from("test client one"), response_three),
+            (String::from("test client two"), response_four),
+        ]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client one")));
+        assert_eq!(errs[1], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_three = test_client_one.receive_response();
+        assert_eq!(response_three.unwrap().data, 9);
+
+        let response_four = test_client_two.receive_response();
+        assert_eq!(response_four.unwrap().data, 10);
+    }
+
+    #[test]
+    fn test_send_resopnse_to_one_of_many_clients_client_server() {
+        let mut test_server: LocalServer<TestRequest, TestResponse> = LocalServer::new();
+        let _ = test_server.create_client(String::from("test client one"));
+        let test_client_two = test_server.create_client(String::from("test client two"));
+
+        let response_one = TestResponse::new(7);
+
+        let errs = test_server.send_responses(vec![(String::from("test client two"), response_one)]);
+        assert_eq!(errs[0], SendError::<TestResponse>::NoError(String::from("test client two")));
+
+        let response_one = test_client_two.receive_response();
+        assert_eq!(response_one.unwrap().data, 7);
     }
 }

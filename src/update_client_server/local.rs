@@ -94,7 +94,7 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, Sen
         for (client, channels) in self.client_mappings.iter() {
             let iter = channels.req_rx.try_iter();
             if let Some(request) = iter.last() {
-                requests.push((*client, request));
+                requests.push((client.clone(), request));
             }
         }
 
@@ -385,8 +385,6 @@ mod tests {
         let update_one = test_client_two.receive_update();
         assert_eq!(update_one.unwrap().data, 7);
     }
-
-    // BEGIN RESPONSE TESTING //
 
     #[test]
     fn test_send_response_update_client_server() {

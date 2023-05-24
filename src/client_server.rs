@@ -15,7 +15,7 @@ pub trait Client<Req: Request, Res: Response, SendErr: Error>: Send {
 pub trait Server<Req: Request, Res: Response, ResErr>: Send {
     type Client;
 
-    fn create_client(&mut self, client_Name: String) -> Self::Client;
+    fn create_client(&mut self, client_name: String) -> Self::Client;
 
     fn get_clients(&self) -> Vec<String>;
 
