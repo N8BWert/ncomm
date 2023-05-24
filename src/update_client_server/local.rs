@@ -2,15 +2,9 @@ use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
 use std::collections::HashMap;
 
 use crate::client_server::{Request, Response};
+use crate::client_server::local::SendError;
 
 use crate::update_client_server::{Update, UpdateClient, UpdateServer};
-
-#[derive(PartialEq, Debug)]
-pub enum SendError<T> {
-    NoError(String),
-    ClientNotFound(String),
-    SendIncomplete((String, mpsc::SendError<T>)),
-}
 
 pub struct LocalUpdateClient<Req: Request, Updt: Update, Res: Response> {
     req_tx: Sender<Req>,
@@ -100,7 +94,7 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, Sen
         for (client, channels) in self.client_mappings.iter() {
             let iter = channels.req_rx.try_iter();
             if let Some(request) = iter.last() {
-                requests.push((client.clone(), request));
+                requests.push((*client, request));
             }
         }
 
