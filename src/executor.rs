@@ -6,7 +6,7 @@ use crate::node::Node;
 /// of the update, start and other functions (an executor will take place on a singular thread)
 pub trait Executor<'a> {
     /// Adds a given node to this executors internal representation of nodes
-    fn add_node(&'a mut self, new_node: &'a mut dyn Node);
+    fn add_node(&mut self, new_node: &'a mut dyn Node);
 
     /// Sets the start time for executors allowing for the update loop to begin
     fn start(&mut self);

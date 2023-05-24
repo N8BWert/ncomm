@@ -12,12 +12,16 @@ pub trait Client<Req: Request, Res: Response, SendErr: Error>: Send {
     fn receive_response(&self) -> Option<Res>;
 }
 
-pub trait Server<Req: Request, Res: Response, SendErr: Error>: Send {
+pub trait Server<Req: Request, Res: Response, ResErr>: Send {
     type Client;
 
-    fn create_client(&mut self) -> Self::Client;
+    fn create_client(&mut self, client_name: String) -> Self::Client;
 
-    fn get_requests(&mut self) -> Vec<Req>;
+    fn get_clients(&self) -> Vec<String>;
 
-    fn send_responses(&self, responses: Vec<Res>) -> Vec<Result<(), SendErr>>;
+    fn receive_requests(&self) -> Vec<(String, Req)>;
+
+    fn send_response(&self, client: String, response: Res) -> ResErr;
+
+    fn send_responses(&self, responses: Vec<(String, Res)>) -> Vec<ResErr>;
 }

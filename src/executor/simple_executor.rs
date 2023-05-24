@@ -42,19 +42,10 @@ impl<'a> SimpleExecutor<'a> {
             interrupted: false
         }
     }
-
-    pub fn add_node(&mut self, new_node: &'a mut dyn Node) {
-        self.heap.push(
-            NodeWrapper{
-                priority: new_node.get_update_rate(),
-                node: new_node
-            }
-        );
-    }
 }
 
 impl<'a> Executor<'a> for SimpleExecutor<'a> {
-    fn add_node(&'a mut self, new_node: &'a mut dyn Node) {
+    fn add_node(&mut self, new_node: &'a mut dyn Node) {
         new_node.start();
         self.heap.push(
             NodeWrapper{
@@ -328,11 +319,11 @@ mod tests {
 
         // Check the first node is the subscriber
         let publisher = simple_executor.heap.pop().unwrap().node;
-        assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n4");
+        assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n5");
 
         // Check the second node is the publisher
         let subscriber = simple_executor.heap.pop().unwrap().node;
-        assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n4");
+        assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n5");
     }
 
     #[test]
@@ -364,10 +355,10 @@ mod tests {
         match (exec_one, exec_two) {
             (Ok(mut pub_executor), Ok(mut sub_executor)) => {
                 let publisher = pub_executor.heap.pop().unwrap().node;
-                assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n10");
+                assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n11");
 
                 let subscriber = sub_executor.heap.pop().unwrap().node;
-                assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n7");
+                assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n8");
             },
             _ => assert_eq!(false, true),
         };
@@ -406,10 +397,10 @@ mod tests {
                 let end_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
 
                 let publisher = pub_executor.heap.pop().unwrap().node;
-                assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n154");
+                assert_eq!(publisher.debug(), "Publisher Node:\npublisher node\n13\n155");
 
                 let subscriber = sub_executor.heap.pop().unwrap().node;
-                assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n153");
+                assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n154");
 
                 println!("Elapsed Time {}", end_time - start_time);
                 assert!(2000 <= end_time - start_time && end_time - start_time <= 2010);
@@ -421,8 +412,8 @@ mod tests {
     #[test]
     fn test_simple_executor_client_server_nodes() {
         let mut server_node = ServerNode::new("server node", 10);
-        let mut client_node_one = ClientNode::new("client node 1", 22, server_node.create_client());
-        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client());
+        let mut client_node_one = ClientNode::new("client node 1", 22, server_node.create_client(String::from("client node 1")));
+        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client(String::from("client node 2")));
         let mut simple_executor = SimpleExecutor::new();
         simple_executor.add_node(&mut server_node);
         simple_executor.add_node(&mut client_node_one);
@@ -434,22 +425,22 @@ mod tests {
 
         // Check the first node is client node 1
         let client_one = simple_executor.heap.pop().unwrap().node;
-        assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n22\n2");
+        assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n22\n3");
 
         // Check the second node is server node
         let server = simple_executor.heap.pop().unwrap().node;
-        assert_eq!(server.debug(), "Server Node:\nserver node\n10\n6");
+        assert_eq!(server.debug(), "Server Node:\nserver node\n10");
 
         // Check the third node is client node 2
         let client_two = simple_executor.heap.pop().unwrap().node;
-        assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n25\n2");
+        assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n25\n3");
     }
 
     #[test]
     fn test_simple_executor_client_server_nodes_different_executors() {
         let mut server_node = ServerNode::new("server node", 10);
-        let mut client_node_one = ClientNode::new("client node 1", 15, server_node.create_client());
-        let mut client_node_two = ClientNode::new("client node 2", 22, server_node.create_client());
+        let mut client_node_one = ClientNode::new("client node 1", 15, server_node.create_client(String::from("client node 1")));
+        let mut client_node_two = ClientNode::new("client node 2", 22, server_node.create_client(String::from("client node 2")));
         let mut executor_one = SimpleExecutor::new();
         let mut executor_two = SimpleExecutor::new();
         executor_one.add_node(&mut server_node);
@@ -475,13 +466,13 @@ mod tests {
         match (exec_one, exec_two) {
             (Ok(mut executor_one), Ok(mut executor_two)) => {
                 let server = executor_one.heap.pop().unwrap().node;
-                assert_eq!(server.debug(), "Server Node:\nserver node\n10\n6");
+                assert_eq!(server.debug(), "Server Node:\nserver node\n10");
 
                 let client_one = executor_one.heap.pop().unwrap().node;
-                assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n15\n7");
+                assert_eq!(client_one.debug(), "Client Node:\nclient node 1\n15\n27");
 
                 let client_two = executor_two.heap.pop().unwrap().node;
-                assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n22\n6");
+                assert_eq!(client_two.debug(), "Client Node:\nclient node 2\n22\n9");
             },
             _ => assert_eq!(false, true),
         }
@@ -490,8 +481,8 @@ mod tests {
     #[test]
     fn test_simple_executor_client_server_nodes_different_executors_time() {
         let mut server_node = ServerNode::new("server node", 12);
-        let mut client_node_one = ClientNode::new("client node 1", 11, server_node.create_client());
-        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client());
+        let mut client_node_one = ClientNode::new("client node 1", 11, server_node.create_client(String::from("client node 1")));
+        let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client(String::from("client node 2")));
         let mut executor_one = SimpleExecutor::new();
         let mut executor_two = SimpleExecutor::new();
         executor_one.add_node(&mut server_node);
