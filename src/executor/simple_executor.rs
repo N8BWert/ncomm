@@ -120,6 +120,7 @@ mod tests {
     use crate::node::basic_node::BasicNode;
     use crate::node::client_server_node::{ServerNode, ClientNode};
     use crate::node::pubsub_node::{PublisherNode, SubscriberNode};
+    use crate::node::update_client_server_node::{UpdateServerNode, UpdateClientNode};
     use std::thread::scope;
 
     #[test]
@@ -263,7 +264,7 @@ mod tests {
         assert_eq!(node_one.get_update_rate(), 15);
         assert_eq!(wrapper_one.priority, 2010);
 
-        assert!(1998 < end_time - start_time && end_time - start_time < 2002);
+        assert!(2000 <= end_time - start_time && end_time - start_time <= 2002);
     }
 
     #[test]
@@ -306,7 +307,7 @@ mod tests {
                 assert_eq!(node_two.name(), String::from("test node 2"));
 
                 println!("Execution Time: {}", end_time - start_time);
-                assert!(2000 < end_time - start_time && end_time - start_time < 2200);
+                assert!(2000 <= end_time - start_time && end_time - start_time <= 2200);
             },
             _ => assert_eq!(false, true),
         };
@@ -388,7 +389,7 @@ mod tests {
             let thread_one = scope.spawn(|| {
                 pub_executor.start();
                 pub_executor.update_for_seconds(2);
-                return pub_executor
+                return pub_executor;
             });
 
             let thread_two = scope.spawn(|| {
@@ -531,6 +532,101 @@ mod tests {
                 assert!(2000 <= end_time - start_time && end_time - start_time <= 2010);
             },
             _ => assert_eq!(true, false)
+        };
+    }
+
+    #[test]
+    fn test_simple_executor_update_client_server_nodes() {
+        let mut server_node = UpdateServerNode::new("update server node", 20);
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut simple_executor = SimpleExecutor::new();
+        simple_executor.add_node(&mut server_node);
+        simple_executor.add_node(&mut client_node);
+
+        // Run the update loop for 10 iterations
+        simple_executor.start();
+        simple_executor.update_for(10);
+
+        // Check the first node is the server
+        let server = simple_executor.heap.pop().unwrap().node;
+        assert_eq!(server.debug(), "Update Server Node:\nupdate server node\n20\n5");
+
+        // Check the second node is the client
+        let client = simple_executor.heap.pop().unwrap().node;
+        assert_eq!(client.debug(), "Update Client Node:\nupdate client node\n20\n10");
+    }
+
+    #[test]
+    fn test_simple_executor_update_client_server_nodes_different_executors() {
+        let mut server_node = UpdateServerNode::new("update server node", 20);
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut server_executor = SimpleExecutor::new();
+        let mut client_executor = SimpleExecutor::new();
+        server_executor.add_node(&mut server_node);
+        client_executor.add_node(&mut client_node);
+
+        let (server_exec, client_exec) = scope(|scope| {
+            let thread_one = scope.spawn(|| {
+                server_executor.start();
+                server_executor.update_for(10);
+                return server_executor;
+            });
+
+            let thread_two = scope.spawn(|| {
+                client_executor.start();
+                client_executor.update_for(10);
+                return client_executor;
+            });
+
+            (thread_one.join(), thread_two.join())
+        });
+
+        match (server_exec, client_exec) {
+            (Ok(mut server_executor), Ok(mut client_executor)) => {
+                let server = server_executor.heap.pop().unwrap().node;
+                assert_eq!(server.debug(), "Update Server Node:\nupdate server node\n20\n5");
+
+                let client = client_executor.heap.pop().unwrap().node;
+                assert_eq!(client.debug(), "Update Client Node:\nupdate client node\n20\n100");
+            },
+            _ => assert_eq!(true, false),
+        };
+    }
+
+    #[test]
+    fn test_simple_executor_update_client_server_nodes_different_executors_time() {
+        let mut server_node = UpdateServerNode::new("update server node", 20);
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut server_executor = SimpleExecutor::new();
+        let mut client_executor = SimpleExecutor::new();
+        server_executor.add_node(&mut server_node);
+        client_executor.add_node(&mut client_node);
+
+        let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+        let (server_exec, client_exec) = scope(|scope| {
+            let thread_one = scope.spawn(|| {
+                server_executor.start();
+                server_executor.update_for_seconds(1);
+                return server_executor;
+            });
+
+            let thread_two = scope.spawn(|| {
+                client_executor.start();
+                client_executor.update_for_seconds(1);
+                return client_executor;
+            });
+
+            (thread_one.join(), thread_two.join())
+        });
+
+        match (server_exec, client_exec) {
+            (Ok(_), Ok(_)) => {
+                let end_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                
+                assert!(1000 <= end_time - start_time && end_time - start_time <= 1010);
+            },
+            _ => assert_eq!(true, false),
         };
     }
 }
