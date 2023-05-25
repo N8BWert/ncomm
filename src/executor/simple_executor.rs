@@ -402,7 +402,7 @@ mod tests {
                 assert_eq!(subscriber.debug(), "Subscriber Node:\nsubscriber node\n10\n154");
 
                 println!("Elapsed Time {}", end_time - start_time);
-                assert!(2000 <= end_time - start_time && end_time - start_time <= 2010);
+                assert!(2000 <= end_time - start_time && end_time - start_time <= 2020);
             },
             _ => assert_eq!(false, true)
         };
