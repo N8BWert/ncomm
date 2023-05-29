@@ -1,7 +1,8 @@
 pub mod local;
+pub mod udp;
 
 /// Trait for all Publishers that allows them to send data to subscribers
-pub trait Publish<Data: Send + Sync + Clone> {
+pub trait Publish<Data: Send + Clone> {
     /// Sends data to a subscriber
     /// 
     /// Args:
@@ -12,7 +13,7 @@ pub trait Publish<Data: Send + Sync + Clone> {
 
 /// Trait for all Publishers that allows subscribers to subscribe to their
 /// data broadcasts
-pub trait Subscribe<Data: Send + Sync + Clone> {
+pub trait Subscribe<Data: Send + Clone> {
     /// The type of the subscriber (local, bluetooth, etc...)
     type Subscriber;
 
@@ -25,6 +26,16 @@ pub trait Subscribe<Data: Send + Sync + Clone> {
     /// Returns:
     ///     Self::Subscriber - a subscriber of type given in trait
     fn create_subscriber(&mut self) -> Self::Subscriber;
+}
+
+/// Trait for Remote Publishers to add another remote subscriber
+pub trait SubscribeRemote<'a> {
+    /// Creates another remote subscriber with given address
+    /// 
+    /// Args:
+    ///     &mut self - mutable reference to self to add then new address
+    ///     address: &'a str - a reference to the address of the new subscriber
+    fn add_subscriber(&mut self, address: &'a str);
 }
 
 /// Trait for all Subscribers that allows them to receive and update their

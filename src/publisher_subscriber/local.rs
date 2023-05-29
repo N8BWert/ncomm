@@ -9,7 +9,7 @@ use crate::publisher_subscriber::{Publish, Subscribe, Receive};
 /// 
 /// Params:
 ///     txs: a list of the Sender<T> ends for the publisher subscriber channel
-pub struct Publisher<Data: Send + Sync + Clone> {
+pub struct Publisher<Data: Send + Clone> {
     txs: Vec<Sender<Data>>,
 }
 
@@ -22,12 +22,12 @@ pub struct Publisher<Data: Send + Sync + Clone> {
 /// Params:
 ///     rx: the Receiver<T> end for the publisher's channel
 ///     data: the most recent data from the publisher (None on init)
-pub struct Subscriber<Data: Send + Sync + Clone> {
+pub struct Subscriber<Data: Send + Clone> {
     rx: Receiver<Data>,
     pub data: Option<Data>,
 }
 
-impl<Data: Send + Sync + Clone> Publisher<Data> {
+impl<Data: Send + Clone> Publisher<Data> {
     /// Creates a new Publisher with empty vector of Sender<T> ends
     /// 
     /// Returns:
@@ -37,7 +37,7 @@ impl<Data: Send + Sync + Clone> Publisher<Data> {
     }
 }
 
-impl<Data: Send + Sync + Clone> Publish<Data> for Publisher<Data> {
+impl<Data: Send + Clone> Publish<Data> for Publisher<Data> {
     /// Sends a given piece of clonable data to each of the subscribers
     /// subscribing to this publisher
     /// 
@@ -51,7 +51,7 @@ impl<Data: Send + Sync + Clone> Publish<Data> for Publisher<Data> {
     }
 }
 
-impl<Data: Send + Sync + Clone> Subscribe<Data> for Publisher<Data> {
+impl<Data: Send + Clone> Subscribe<Data> for Publisher<Data> {
     /// The Local Subscriber Type associated with the Local Publisher
     type Subscriber = Subscriber<Data>;
 
@@ -70,7 +70,7 @@ impl<Data: Send + Sync + Clone> Subscribe<Data> for Publisher<Data> {
     }
 }
 
-impl <Data: Send + Sync + Clone> Subscriber<Data> {
+impl <Data: Send + Clone> Subscriber<Data> {
     /// Creates a new local subscriber (called in create_subscriber)
     /// 
     /// Args:
@@ -95,7 +95,7 @@ impl <Data: Send + Sync + Clone> Subscriber<Data> {
     }
 }
 
-impl<Data: Send + Sync + Clone> Receive for Subscriber<Data> {
+impl<Data: Send + Clone> Receive for Subscriber<Data> {
     /// Updates the internal data of a local subscriber with data from the
     /// receiver.  The only data stored is the most recent data
     /// 
