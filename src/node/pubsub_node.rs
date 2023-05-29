@@ -1,18 +1,18 @@
 use crate::node::Node;
 
-use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{Publisher, Subscriber}};
+use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{LocalPublisher, LocalSubscriber}};
 
 pub struct PublisherNode<'a> {
     name: &'a str,
     update_rate: u128,
     test_number: u128,
-    num_publisher: Publisher<u128>,
+    num_publisher: LocalPublisher<u128>,
 }
 
 pub struct SubscriberNode<'a> {
     name: &'a str,
     update_rate: u128,
-    num_subscriber: Option<Subscriber<u128>>,
+    num_subscriber: Option<LocalSubscriber<u128>>,
 }
 
 impl<'a> PublisherNode<'a> {
@@ -21,11 +21,11 @@ impl<'a> PublisherNode<'a> {
             name,
             update_rate,
             test_number: 0,
-            num_publisher: Publisher::new(),
+            num_publisher: LocalPublisher::new(),
         }
     }
 
-    pub fn subscribe_to_num_publisher(&mut self) -> Subscriber<u128> {
+    pub fn subscribe_to_num_publisher(&mut self) -> LocalSubscriber<u128> {
         self.num_publisher.create_subscriber()
     }
 }
@@ -39,7 +39,7 @@ impl<'a> SubscriberNode<'a> {
         }
     }
 
-    pub fn add_num_subscriber_subscriber(&mut self, subscriber: Subscriber<u128>) {
+    pub fn add_num_subscriber_subscriber(&mut self, subscriber: LocalSubscriber<u128>) {
         self.num_subscriber = Some(subscriber);
     }
 }

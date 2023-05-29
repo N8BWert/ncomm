@@ -1,18 +1,18 @@
 use crate::node::Node;
 
-use crate::publisher_subscriber::{Publish, Receive, udp::{Publisher, Subscriber}};
+use crate::publisher_subscriber::{Publish, Receive, udp::{UdpPublisher, UdpSubscriber}};
 
 pub struct UdpPublisherNode<'a> {
     name: &'a str,
     update_rate: u128,
     test_number: u8,
-    num_publisher: Publisher<'a, u8, 1>,
+    num_publisher: UdpPublisher<'a, u8, 1>,
 }
 
 pub struct UdpSubscriberNode<'a> {
     name: &'a str,
     update_rate: u128,
-    num_subscriber: Subscriber<u8, 1>,
+    num_subscriber: UdpSubscriber<u8, 1>,
 }
 
 impl<'a> UdpPublisherNode<'a> {
@@ -21,7 +21,7 @@ impl<'a> UdpPublisherNode<'a> {
             name,
             update_rate,
             test_number: 0,
-            num_publisher: Publisher::new(bind_address, addresses),
+            num_publisher: UdpPublisher::new(bind_address, addresses),
         }
     }
 }
@@ -31,7 +31,7 @@ impl<'a> UdpSubscriberNode<'a> {
         Self {
             name,
             update_rate,
-            num_subscriber: Subscriber::new(bind_address, from_address),
+            num_subscriber: UdpSubscriber::new(bind_address, from_address),
         }
     }
 }

@@ -3,18 +3,18 @@ use std::marker::PhantomData;
 
 use crate::publisher_subscriber::{Publish, SubscribeRemote, Receive};
 
-pub struct Publisher<'a, Data: Send + Clone, const DATA_SIZE: usize> {
+pub struct UdpPublisher<'a, Data: Send + Clone, const DATA_SIZE: usize> {
     tx: UdpSocket,
     addresses: Vec<&'a str>,
     phantom: PhantomData<Data>,
 }
 
-pub struct Subscriber<Data: Send + Clone, const DATA_SIZE: usize> {
+pub struct  UdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
     rx: UdpSocket,
     pub data: Option<Data>,
 }
 
-impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publisher<'a, Data, DATA_SIZE> {
+impl<'a, Data: Send + Clone, const DATA_SIZE: usize> UdpPublisher<'a, Data, DATA_SIZE> {
     pub fn new(bind_address: &'a str, addresses: Vec<&'a str>) -> Self {
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
         socket.set_nonblocking(true).unwrap();
@@ -23,7 +23,7 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publisher<'a, Data, DATA_SI
     }
 }
 
-impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Subscriber<Data, DATA_SIZE> {
+impl<'a, Data: Send + Clone, const DATA_SIZE: usize>  UdpSubscriber<Data, DATA_SIZE> {
     pub fn new(bind_address: &'a str, from_address: &'a str) -> Self {
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
         socket.connect(from_address).expect("couldn't connect to the given address");
@@ -33,7 +33,7 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Subscriber<Data, DATA_SIZE>
     }
 }
 
-impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for Publisher<'a, Data, DATA_SIZE> {
+impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for UdpPublisher<'a, Data, DATA_SIZE> {
     fn send(&self, data: Data) {
         let buf: [u8; DATA_SIZE] = unsafe { std::mem::transmute_copy(&data) };
         for address in self.addresses.iter() {
@@ -44,13 +44,13 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for Publisher
     }
 }
 
-impl<'a, Data: Send + Clone, const DATA_SIZE: usize> SubscribeRemote<'a> for Publisher<'a, Data, DATA_SIZE> {
+impl<'a, Data: Send + Clone, const DATA_SIZE: usize> SubscribeRemote<'a> for UdpPublisher<'a, Data, DATA_SIZE> {
     fn add_subscriber(&mut self, address: &'a str) {
         self.addresses.push(address);
     }
 }
 
-impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for Subscriber<Data, DATA_SIZE> {
+impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for  UdpSubscriber<Data, DATA_SIZE> {
     fn update_data(&mut self) {
         let mut data: Option<Data> = None;
         loop {
@@ -74,8 +74,8 @@ mod tests {
 
     #[test]
     fn test_create_udp_publisher_and_subscriber() {
-        let subscriber: Subscriber<u8, 1> = Subscriber::new("127.0.0.1:8001", "127.0.0.1:8000");
-        let publisher: Publisher<u8, 1> = Publisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
+        let subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:8001", "127.0.0.1:8000");
+        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
 
         assert_eq!(subscriber.rx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8001)));
         assert_eq!(subscriber.data, None);
@@ -86,8 +86,8 @@ mod tests {
 
     #[test]
     fn test_send_data_udp_publisher_and_subscriber() {
-        let mut subscriber: Subscriber<u8, 1> = Subscriber::new("127.0.0.1:8001", "127.0.0.1:8000");
-        let publisher: Publisher<u8, 1> = Publisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
+        let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:8001", "127.0.0.1:8000");
+        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
 
         publisher.send(5u8);
 
@@ -101,8 +101,8 @@ mod tests {
 
     #[test]
     fn test_send_many_data_udp_publisher_and_subscriber() {
-        let mut subscriber: Subscriber<u8, 1> = Subscriber::new("127.0.0.1:7001", "127.0.0.1:7000");
-        let publisher: Publisher<u8, 1> = Publisher::new("127.0.0.1:7000", vec!["127.0.0.1:7001"]);
+        let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:7001", "127.0.0.1:7000");
+        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:7000", vec!["127.0.0.1:7001"]);
 
         for i in 0..=8u8 {
             publisher.send(i);
