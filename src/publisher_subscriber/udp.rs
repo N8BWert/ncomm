@@ -60,7 +60,9 @@ impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for Subscriber<Data, DA
                 Err(_) => break,
             }
         }
-        self.data = data;
+        if let Some(data) = data {
+            self.data = Some(data);
+        }
     }
 }
 

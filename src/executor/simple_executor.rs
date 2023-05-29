@@ -111,6 +111,7 @@ mod tests {
     use crate::node::client_server_node::{ServerNode, ClientNode};
     use crate::node::pubsub_node::{PublisherNode, SubscriberNode};
     use crate::node::update_client_server_node::{UpdateServerNode, UpdateClientNode};
+    use crate::node::udp_pubsub_node::{UdpPublisherNode, UdpSubscriberNode};
     use std::thread::scope;
 
     #[test]
@@ -618,5 +619,106 @@ mod tests {
             },
             _ => assert_eq!(true, false),
         };
+    }
+
+    #[test]
+    fn test_simple_executor_udp_pubsub_nodes() {
+        let mut publisher = UdpPublisherNode::new(
+            "udp publisher node",
+            20,
+            "127.0.0.1:8020",
+            vec!["127.0.0.1:8021"],
+        );
+        let mut subscriber = UdpSubscriberNode::new(
+            "udp subscriber node",
+            30,
+            "127.0.0.1:8021",
+            "127.0.0.1:8020",
+        );
+        let mut executor = SimpleExecutor::new();
+        executor.add_node(&mut publisher);
+        executor.add_node(&mut subscriber);
+
+        // Run the update loop for 10 iterations
+        executor.start();
+        executor.update_for(10);
+
+        // Check the first node is the publisher
+        let publisher = executor.heap.pop().unwrap().node;
+        let binding = publisher.debug();
+        let mut parts = binding.split("\n");
+        assert_eq!(Some("UDP Publisher Node:"), parts.next());
+        assert_eq!(Some("udp publisher node"), parts.next());
+        assert_eq!(Some("20"), parts.next());
+        assert_eq!(Some("7"), parts.next());
+
+        // Check the first node is the subscriber
+        let subscriber = executor.heap.pop().unwrap().node;
+        let binding = subscriber.debug();
+        let mut parts = binding.split("\n");
+        assert_eq!(Some("UDP Subscriber Node:"), parts.next());
+        assert_eq!(Some("udp subscriber node"), parts.next());
+        assert_eq!(Some("30"), parts.next());
+        match parts.next().to_owned().unwrap().to_string().parse::<u8>() {
+            Ok(4..=6) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    #[test]
+    fn test_simple_executor_udp_pubsub_nodes_different_executors() {
+        let mut publisher = UdpPublisherNode::new(
+            "udp publisher node",
+            20,
+            "127.0.0.1:8022",
+            vec!["127.0.0.1:8023"],
+        );
+        let mut subscriber = UdpSubscriberNode::new(
+            "udp subscriber node",
+            30,
+            "127.0.0.1:8023",
+            "127.0.0.1:8022",
+        );
+        let mut pub_executor = SimpleExecutor::new();
+        let mut sub_executor = SimpleExecutor::new();
+        pub_executor.add_node(&mut publisher);
+        sub_executor.add_node(&mut subscriber);
+
+        let (pub_exec, sub_exec) = scope(|scope| {
+            let thread_one = scope.spawn(|| {
+                pub_executor.start();
+                pub_executor.update_for(10);
+                return pub_executor;
+            });
+
+            let thread_two = scope.spawn(|| {
+                sub_executor.start();
+                sub_executor.update_for(10);
+                return sub_executor;
+            });
+
+            (thread_one.join(), thread_two.join())
+        });
+
+        match (pub_exec, sub_exec) {
+            (Ok(mut pub_executor), Ok(mut sub_executor)) => {
+                let publisher = pub_executor.heap.pop().unwrap().node;
+                let binding = publisher.debug();
+                let mut parts = binding.split("\n");
+                assert_eq!(Some("UDP Publisher Node:"), parts.next());
+                assert_eq!(Some("udp publisher node"), parts.next());
+                assert_eq!(Some("20"), parts.next());
+                assert_eq!(Some("11"), parts.next());
+
+                let subscriber = sub_executor.heap.pop().unwrap().node;
+                let binding = subscriber.debug();
+                let mut parts = binding.split("\n");
+                assert_eq!(Some("UDP Subscriber Node:"), parts.next());
+                assert_eq!(Some("udp subscriber node"), parts.next());
+                assert_eq!(Some("30"), parts.next());
+                assert_eq!(Some("11"), parts.next());
+            },
+            _ => assert_eq!(true, false),
+        }
     }
 }

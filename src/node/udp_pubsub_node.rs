@@ -82,10 +82,10 @@ impl<'a> Node for UdpSubscriberNode<'a> {
 
     fn debug(&self) -> String {
         format!(
-            "Subscriber Node:\n{}\n{}\n{}",
+            "UDP Subscriber Node:\n{}\n{}\n{:?}",
             self.name(),
             self.update_rate,
-            self.num_subscriber.data.unwrap(),
+            if let Some(data) = self.num_subscriber.data { data } else { 0 },
         )
     }
 }
