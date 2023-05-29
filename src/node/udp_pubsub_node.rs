@@ -2,6 +2,16 @@ use crate::node::Node;
 
 use crate::publisher_subscriber::{Publish, Receive, udp::{UdpPublisher, UdpSubscriber}};
 
+/// Test Udp Publisher Node
+/// 
+/// This node was created to both demo the usage of the UdpPublisher and to debug
+/// the UdpPublisher to ensure it works correctly
+/// 
+/// Params:
+///     name: the name of this node
+///     update_rate: the rate at which this node should be updated (ms)
+///     test_number: the current test number this node contains
+///     num_publisher: the UdpPublisher that will publish a singular u8
 pub struct UdpPublisherNode<'a> {
     name: &'a str,
     update_rate: u128,
@@ -9,6 +19,16 @@ pub struct UdpPublisherNode<'a> {
     num_publisher: UdpPublisher<'a, u8, 1>,
 }
 
+/// Test UdpSubscriber Node
+/// 
+/// This node was created to both demo the usage of the UdpSubsciber and to debug
+/// the UdpSubscriber to ensure it works correctly
+/// 
+/// Params:
+///     name: the name of this node
+///     update_rate: the rate at which this node should be updated (ms)
+///     num_subscriber: the UdpSubscriber that will subscribe to the updates of the above
+///         UdpPublisherNode.
 pub struct UdpSubscriberNode<'a> {
     name: &'a str,
     update_rate: u128,
@@ -16,6 +36,13 @@ pub struct UdpSubscriberNode<'a> {
 }
 
 impl<'a> UdpPublisherNode<'a> {
+    /// Creates a new UdpPublisherNode
+    /// 
+    /// Args:
+    ///     name: the name for this publisher node
+    ///     update_rate: the update rate (in ms) of this udp publisher node
+    ///     bind_address: the address this publisher should bind to
+    ///     addresses: the addresses this udp publisher node should send to
     pub fn new(name: &'a str, update_rate: u128, bind_address: &'a str, addresses: Vec<&'a str>) -> Self {
         Self {
             name,
@@ -27,6 +54,13 @@ impl<'a> UdpPublisherNode<'a> {
 }
 
 impl<'a> UdpSubscriberNode<'a> {
+    /// Creates a new UdpSubscriberNode
+    /// 
+    /// Args:
+    ///     name: the name for this subscriber ndoe
+    ///     update_rate: the update rate (in ms) of this udp subscriber node
+    ///     bind_address: the address this subscriber should bind to
+    ///     from_address: the address this subscriber should look at data from
     pub fn new(name: &'a str, update_rate: u128, bind_address: &'a str, from_address: &'a str) -> Self {
         Self {
             name,

@@ -31,7 +31,7 @@ impl<Data: Send + Clone> LocalPublisher<Data> {
     /// Creates a new Publisher with empty vector of Sender<T> ends
     /// 
     /// Returns:
-    ///     Publisher<T> - new Publisher
+    ///     Publisher<T>: new Publisher
     pub const fn new() -> Self {
         Self{ txs: Vec::new() }
     }
@@ -41,9 +41,8 @@ impl<Data: Send + Clone> Publish<Data> for LocalPublisher<Data> {
     /// Sends a given piece of clonable data to each of the subscribers
     /// subscribing to this publisher
     /// 
-    /// Arsg:
-    ///     &self - the publisher sending the data
-    ///     data: T - the data to send to the subscribers
+    /// Args:
+    ///     data: T: the data to send to the subscribers
     fn send(&self, data: Data) {
         for tx in self.txs.iter() {
             tx.send(data.clone()).expect("Data Not Sendable");
@@ -57,12 +56,8 @@ impl<Data: Send + Clone> Subscribe<Data> for LocalPublisher<Data> {
 
     /// Creates a new local subscriber for this publisher
     /// 
-    /// Args:
-    ///     &mut self - mutable reference to self (adds a tx channel)
-    /// 
-    /// 
     /// Returns:
-    ///     Subscriber<T> - a new local subscriber
+    ///     Subscriber<T>: a new local subscriber
     fn create_subscriber(&mut self) -> LocalSubscriber<Data> {
         let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
         self.txs.push(tx);
@@ -74,11 +69,11 @@ impl <Data: Send + Clone> LocalSubscriber<Data> {
     /// Creates a new local subscriber (called in create_subscriber)
     /// 
     /// Args:
-    ///     rx: Receiver<T> - the receiving end of a publisher channel
-    ///     data: Option<T> - the original data to hold in the subscriber
+    ///     rx: Receiver<T>: the receiving end of a publisher channel
+    ///     data: Option<T>: the original data to hold in the subscriber
     /// 
     /// Returns:
-    ///     Subscriber<T> - a new subscriber object
+    ///     Subscriber<T>: a new subscriber object
     pub fn new(rx: Receiver<Data>, data: Option<Data>) -> Self {
         Self{ rx, data }
     }
@@ -86,10 +81,10 @@ impl <Data: Send + Clone> LocalSubscriber<Data> {
     /// Creates a new local subscriber with data = None (called in create_subsciber)
     /// 
     /// Args:
-    ///     rx: Receiver<T> - the receiving end of a publisher channel
+    ///     rx: Receiver<T>: the receiving end of a publisher channel
     /// 
     /// Returns:
-    ///     Subscriber<T> - a new subscriber object
+    ///     Subscriber<T>: a new subscriber object
     pub fn new_empty(rx: Receiver<Data>) -> Self {
         Self { rx, data: None }
     }
@@ -98,10 +93,6 @@ impl <Data: Send + Clone> LocalSubscriber<Data> {
 impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
     /// Updates the internal data of a local subscriber with data from the
     /// receiver.  The only data stored is the most recent data
-    /// 
-    /// Args:
-    ///     &mut self - a mutable reference to self to get the receiver and to
-    ///         update the most recent data
     fn update_data(&mut self) {
         let iter = self.rx.try_iter();
         match iter.last() {
