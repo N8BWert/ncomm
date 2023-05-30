@@ -3,6 +3,11 @@ use crate::node::Node;
 
 use std::{collections::BinaryHeap, cmp::{Ord, Ordering}, time::{Duration, SystemTime, UNIX_EPOCH}, thread};
 
+/// Wrapper for a node that gives it a priority based on its update rate
+/// 
+/// Params:
+///     priorty: the priority of the node (i.e. the timestamp of the next update)
+///     node: the node that will be updated after the priority timestamp it reached
 struct NodeWrapper<'a> {
     pub priority: u128,
     pub node: &'a mut dyn Node,
@@ -28,6 +33,15 @@ impl PartialEq for NodeWrapper<'_> {
 
 impl Eq for NodeWrapper<'_> {}
 
+/// Simple Implementation of an executor
+/// 
+/// This simple executor stores Nodes in a Binary heap with with priority equal to the
+/// timestamp of the node's next update.
+/// 
+/// Params:
+///     heap: the binary heap storing Nodes and priorities for their next updates
+///     start_time: the time this simple executor was started
+///     interrupted: whether or not this node has been interrupted
 pub struct SimpleExecutor<'a> {
     heap: BinaryHeap<NodeWrapper<'a>>,
     start_time: u128,
@@ -35,6 +49,7 @@ pub struct SimpleExecutor<'a> {
 }
 
 impl<'a> SimpleExecutor<'a> {
+    /// Creates a new Simple Executor
     pub fn new() -> Self {
         Self{
             heap: BinaryHeap::new(),
@@ -529,7 +544,7 @@ mod tests {
     #[test]
     fn test_simple_executor_update_client_server_nodes() {
         let mut server_node = UpdateServerNode::new("update server node", 20);
-        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
         let mut simple_executor = SimpleExecutor::new();
         simple_executor.add_node(&mut server_node);
         simple_executor.add_node(&mut client_node);
@@ -550,7 +565,7 @@ mod tests {
     #[test]
     fn test_simple_executor_update_client_server_nodes_different_executors() {
         let mut server_node = UpdateServerNode::new("update server node", 20);
-        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
         let mut server_executor = SimpleExecutor::new();
         let mut client_executor = SimpleExecutor::new();
         server_executor.add_node(&mut server_node);
@@ -587,7 +602,7 @@ mod tests {
     #[test]
     fn test_simple_executor_update_client_server_nodes_different_executors_time() {
         let mut server_node = UpdateServerNode::new("update server node", 20);
-        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_client(String::from("update client node")));
+        let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
         let mut server_executor = SimpleExecutor::new();
         let mut client_executor = SimpleExecutor::new();
         server_executor.add_node(&mut server_node);

@@ -38,11 +38,6 @@ impl<Data: Send + Clone> LocalPublisher<Data> {
 }
 
 impl<Data: Send + Clone> Publish<Data> for LocalPublisher<Data> {
-    /// Sends a given piece of clonable data to each of the subscribers
-    /// subscribing to this publisher
-    /// 
-    /// Args:
-    ///     data: T: the data to send to the subscribers
     fn send(&self, data: Data) {
         for tx in self.txs.iter() {
             tx.send(data.clone()).expect("Data Not Sendable");
@@ -54,10 +49,6 @@ impl<Data: Send + Clone> Subscribe<Data> for LocalPublisher<Data> {
     /// The Local Subscriber Type associated with the Local Publisher
     type Subscriber = LocalSubscriber<Data>;
 
-    /// Creates a new local subscriber for this publisher
-    /// 
-    /// Returns:
-    ///     Subscriber<T>: a new local subscriber
     fn create_subscriber(&mut self) -> LocalSubscriber<Data> {
         let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
         self.txs.push(tx);
@@ -66,33 +57,16 @@ impl<Data: Send + Clone> Subscribe<Data> for LocalPublisher<Data> {
 }
 
 impl <Data: Send + Clone> LocalSubscriber<Data> {
-    /// Creates a new local subscriber (called in create_subscriber)
-    /// 
-    /// Args:
-    ///     rx: Receiver<T>: the receiving end of a publisher channel
-    ///     data: Option<T>: the original data to hold in the subscriber
-    /// 
-    /// Returns:
-    ///     Subscriber<T>: a new subscriber object
     pub fn new(rx: Receiver<Data>, data: Option<Data>) -> Self {
         Self{ rx, data }
     }
 
-    /// Creates a new local subscriber with data = None (called in create_subsciber)
-    /// 
-    /// Args:
-    ///     rx: Receiver<T>: the receiving end of a publisher channel
-    /// 
-    /// Returns:
-    ///     Subscriber<T>: a new subscriber object
     pub fn new_empty(rx: Receiver<Data>) -> Self {
         Self { rx, data: None }
     }
 }
 
 impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
-    /// Updates the internal data of a local subscriber with data from the
-    /// receiver.  The only data stored is the most recent data
     fn update_data(&mut self) {
         let iter = self.rx.try_iter();
         match iter.last() {

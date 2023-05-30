@@ -72,10 +72,6 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize>  UdpSubscriber<Data, DATA_S
 }
 
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for UdpPublisher<'a, Data, DATA_SIZE> {
-    /// Sends a piece of data from this publisher to each of the subscribers over UDP.
-    /// 
-    /// Args:
-    ///     data: the data to send to the subscriber
     fn send(&self, data: Data) {
         let buf: [u8; DATA_SIZE] = unsafe { std::mem::transmute_copy(&data) };
         for address in self.addresses.iter() {
@@ -87,18 +83,12 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for UdpPublis
 }
 
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> SubscribeRemote<'a> for UdpPublisher<'a, Data, DATA_SIZE> {
-    /// Adds a string literal to the list of addresses for this node to send data to.
-    /// 
-    /// Args:
-    ///     address: the address to add to the send list
     fn add_subscriber(&mut self, address: &'a str) {
         self.addresses.push(address);
     }
 }
 
 impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for  UdpSubscriber<Data, DATA_SIZE> {
-    /// Updates the internal data of a Udp Subscriber to be the most recent datagram received over
-    /// Udp (decoded into Data)
     fn update_data(&mut self) {
         let mut data: Option<Data> = None;
         loop {
