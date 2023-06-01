@@ -2,6 +2,11 @@
 name = "ncomm"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Rust Node-Based Communication Prototype Framework"
+homepage = "https://github.com/N8BWert/ncomm"
+repository = "https://github.com/N8BWert/ncomm"
+readme = "README.md"
 
 [dependencies]
 ncomm_macro_derive = { path = "ncomm_macro_derive" }
