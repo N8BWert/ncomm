@@ -1,20 +1,18 @@
-use ncomm_macro_derive::{Request, Update, Response};
-use ncomm::update_client_server::{UpdateServer, Update, local::{LocalUpdateClient, LocalUpdateServer}};
-use ncomm::client_server::{Request, Response};
+use ncomm::update_client_server::{UpdateServer, local::{LocalUpdateClient, LocalUpdateServer}};
 use ncomm::node::Node;
 
-#[derive(PartialEq, Clone, Request)]
+#[derive(PartialEq, Clone)]
 pub struct FibonacciRequest {
     pub order: u128,
 }
 
-#[derive(PartialEq, Clone, Update)]
+#[derive(PartialEq, Clone)]
 pub struct FibonacciUpdate {
     pub last_num: u128,
     pub current_num: u128,
 }
 
-#[derive(PartialEq, Clone, Response)]
+#[derive(PartialEq, Clone)]
 pub struct FibonacciResponse {
     pub num: u128,
 }
