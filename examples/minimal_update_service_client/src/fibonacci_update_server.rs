@@ -34,7 +34,7 @@ impl<'a> FibonacciUpdateServer<'a> {
     }
 
     pub fn create_client(&mut self, client_name: String) -> LocalUpdateClient<FibonacciRequest, FibonacciUpdate, FibonacciResponse> {
-        self.update_server.create_client(client_name)
+        self.update_server.create_update_client(client_name)
     }
 }
 
