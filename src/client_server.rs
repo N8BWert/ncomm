@@ -2,14 +2,10 @@ pub mod local;
 
 use std::error::Error;
 
-/// "Empty" Request trait to be implemented by all Requests being sent by clients.
-pub trait Request: PartialEq + Send + Clone {}
-
-/// "Empty" Response trait to be implemented by all Responses being sent by servers.
-pub trait Response: PartialEq + Send + Clone {}
-
 /// Trait for all Clients that allows them to send requests and receive responses.
-pub trait Client<Req: Request, Res: Response, SendErr: Error>: Send {
+pub trait Client<Req: PartialEq + Send + Clone,
+                 Res: PartialEq + Send + Clone,
+                 SendErr: Error>: Send {
     /// Sends a request to a Server
     /// 
     /// Args:
@@ -27,7 +23,9 @@ pub trait Client<Req: Request, Res: Response, SendErr: Error>: Send {
 }
 
 /// Trait for all Servers that allows them to receive requests and send responses.
-pub trait Server<Req: Request, Res: Response, ResErr>: Send {
+pub trait Server<Req: PartialEq + Send + Clone,
+                 Res: PartialEq + Send + Clone,
+                 ResErr>: Send {
     /// The type of Client (loca, bluetooth, etc...)
     type Client;
 
