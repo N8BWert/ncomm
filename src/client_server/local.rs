@@ -1,7 +1,7 @@
 use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
 use std::collections::HashMap;
 
-use crate::client_server::{Request, Response, Client, Server};
+use crate::client_server::{Client, Server};
 
 #[derive(PartialEq, Debug)]
 pub enum SendError<T> {
@@ -10,39 +10,46 @@ pub enum SendError<T> {
     SendIncomplete((String, mpsc::SendError<T>)),
 }
 
-pub struct LocalClient<Req: Request, Res: Response> {
+pub struct LocalClient<Req: PartialEq + Send + Clone,
+                       Res: PartialEq + Send + Clone> {
     req_tx: Sender<Req>,
     res_rx: Receiver<Res>
 }
 
-struct LocalServerChannels<Req: Request, Res: Response> {
+struct LocalServerChannels<Req: PartialEq + Send + Clone,
+                           Res: PartialEq + Send + Clone> {
     req_rx: Receiver<Req>,
     res_tx: Sender<Res>,
 }
 
-pub struct LocalServer<Req: Request, Res: Response> {
+pub struct LocalServer<Req: PartialEq + Send + Clone,
+                       Res: PartialEq + Send + Clone> {
     client_mappings: HashMap<String, LocalServerChannels<Req, Res>>,
 }
 
-impl<Req: Request, Res: Response> LocalClient<Req, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> LocalClient<Req, Res> {
     pub const fn new(req_tx: Sender<Req>, res_rx: Receiver<Res>) -> Self {
         Self {req_tx, res_rx }
     }
 }
 
-impl<Req: Request, Res: Response> LocalServerChannels<Req, Res> {
+impl<Req: PartialEq + Send + Clone,
+    Res: PartialEq + Send + Clone> LocalServerChannels<Req, Res> {
     pub const fn new(req_rx: Receiver<Req>, res_tx: Sender<Res>) -> Self {
         Self { req_rx, res_tx }
     }
 }
 
-impl<Req: Request, Res: Response> LocalServer<Req, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> LocalServer<Req, Res> {
     pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
 }
 
-impl<Req: Request, Res: Response> Client<Req, Res, mpsc::SendError<Req>> for LocalClient<Req, Res> {
+impl<Req: PartialEq + Send + Clone,
+    Res: PartialEq + Send + Clone> Client<Req, Res, mpsc::SendError<Req>> for LocalClient<Req, Res> {
     fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
         self.req_tx.send(request)
     }
@@ -57,7 +64,8 @@ impl<Req: Request, Res: Response> Client<Req, Res, mpsc::SendError<Req>> for Loc
     }
 }
 
-impl<Req: Request, Res: Response> Server<Req, Res, SendError<Res>> for LocalServer<Req, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> Server<Req, Res, SendError<Res>> for LocalServer<Req, Res> {
     type Client = LocalClient<Req, Res>;
 
     fn create_client(&mut self, client_name: String) -> Self::Client {
@@ -127,9 +135,8 @@ impl<Req: Request, Res: Response> Server<Req, Res, SendError<Res>> for LocalServ
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ncomm_macro_derive::{Request, Response};
 
-    #[derive(PartialEq, Clone, Request, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestRequest {
         data: u8
     }
@@ -139,7 +146,7 @@ mod tests {
         }
     }
 
-    #[derive(PartialEq, Clone, Response, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestResponse {
         data: u8
     }
