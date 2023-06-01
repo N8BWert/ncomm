@@ -1,10 +1,9 @@
 use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
 use std::collections::HashMap;
 
-use crate::client_server::{Request, Response};
 use crate::client_server::local::SendError;
 
-use crate::update_client_server::{Update, UpdateClient, UpdateServer};
+use crate::update_client_server::{UpdateClient, UpdateServer};
 
 /// Local Implementation of an Update Client
 /// 
@@ -12,7 +11,9 @@ use crate::update_client_server::{Update, UpdateClient, UpdateServer};
 ///     req_tx: the sender from this client to the server
 ///     updt_rx: the receiver from the server to this client for updates
 ///     res_rx: the receiver from the server to this client for responses
-pub struct LocalUpdateClient<Req: Request, Updt: Update, Res: Response> {
+pub struct LocalUpdateClient<Req: PartialEq + Send + Clone,
+                             Updt: PartialEq + Send + Clone,
+                             Res: PartialEq + Send + Clone> {
     req_tx: Sender<Req>,
     updt_rx: Receiver<Updt>,
     res_rx: Receiver<Res>,
@@ -24,7 +25,9 @@ pub struct LocalUpdateClient<Req: Request, Updt: Update, Res: Response> {
 ///     req_rx: the receiver from the client to this server for requests
 ///     updt_tx: the sender from this server to the client (for updates)
 ///     res_tx: the sender from this server to the client (for responses)
-struct LocalUpdateServerChannels<Req: Request, Updt: Update, Res: Response> {
+struct LocalUpdateServerChannels<Req: PartialEq + Send + Clone,
+                                 Updt: PartialEq + Send + Clone,
+                                 Res: PartialEq + Send + Clone> {
     req_rx: Receiver<Req>,
     updt_tx: Sender<Updt>,
     res_tx: Sender<Res>,
@@ -35,11 +38,15 @@ struct LocalUpdateServerChannels<Req: Request, Updt: Update, Res: Response> {
 /// Params:
 ///     client_mappings: a mapping of clients (by string name) to their server channel
 ///         ends
-pub struct LocalUpdateServer<Req: Request, Updt: Update, Res: Response> {
+pub struct LocalUpdateServer<Req: PartialEq + Send + Clone,
+                             Updt: PartialEq + Send + Clone,
+                             Res: PartialEq + Send + Clone> {
     client_mappings: HashMap<String, LocalUpdateServerChannels<Req, Updt, Res>>,
 }
 
-impl<Req: Request, Updt: Update, Res: Response> LocalUpdateClient<Req, Updt, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> LocalUpdateClient<Req, Updt, Res> {
     /// Creates a new LocalUpdateClient with given req_tx, updt_rx, and res_rx
     /// 
     /// Args:
@@ -54,21 +61,27 @@ impl<Req: Request, Updt: Update, Res: Response> LocalUpdateClient<Req, Updt, Res
     }
 }
 
-impl<Req: Request, Updt: Update, Res: Response> LocalUpdateServerChannels<Req, Updt, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> LocalUpdateServerChannels<Req, Updt, Res> {
     /// Creates a new LocalUpdateServer Channel object (used as a helpler for the LocalUpdateServer)
     const fn new(req_rx: Receiver<Req>, updt_tx: Sender<Updt>, res_tx: Sender<Res>) -> Self {
         Self { req_rx, updt_tx, res_tx }
     }
 }
 
-impl<Req: Request, Updt: Update, Res: Response> LocalUpdateServer<Req, Updt, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> LocalUpdateServer<Req, Updt, Res> {
     /// Creates a new LocalUpdateServer with no clients
     pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
 }
 
-impl<Req: Request, Updt: Update, Res: Response> UpdateClient<Req, Updt, Res, mpsc::SendError<Req>> for LocalUpdateClient<Req, Updt, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> UpdateClient<Req, Updt, Res, mpsc::SendError<Req>> for LocalUpdateClient<Req, Updt, Res> {
     fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
         self.req_tx.send(request)
     }
@@ -92,7 +105,9 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateClient<Req, Updt, Res, mps
     }
 }
 
-impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, SendError<Updt>, SendError<Res>> for LocalUpdateServer<Req, Updt, Res> {
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> UpdateServer<Req, Updt, Res, SendError<Updt>, SendError<Res>> for LocalUpdateServer<Req, Updt, Res> {
     type UpdateClient = LocalUpdateClient<Req, Updt, Res>;
 
     fn create_update_client(&mut self, client_name: String) -> Self::UpdateClient {
@@ -193,9 +208,8 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, Sen
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ncomm_macro_derive::{Request, Response, Update};
 
-    #[derive(PartialEq, Clone, Request, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestRequest {
         data: u8
     }
@@ -205,7 +219,7 @@ mod tests {
         }
     }
 
-    #[derive(PartialEq, Clone, Update, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestUpdate {
         data: u8
     }
@@ -215,7 +229,7 @@ mod tests {
         }
     }
 
-    #[derive(PartialEq, Clone, Response, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     struct TestResponse {
         data: u8
     }
