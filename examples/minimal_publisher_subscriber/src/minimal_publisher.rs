@@ -1,18 +1,18 @@
-use ncomm::publisher_subscriber::{Publish, Subscribe, local::{Publisher, Subscriber}};
+use ncomm::publisher_subscriber::{Publish, Subscribe, local::{LocalPublisher, LocalSubscriber}};
 use ncomm::node::Node;
 
 pub struct MinimalPublisher<'a> {
     name: &'a str,
     count: u128,
-    publisher: Publisher<String>,
+    publisher: LocalPublisher<String>,
 }
 
 impl<'a> MinimalPublisher<'a> {
     pub const fn new(name: &'a str) -> Self {
-        Self { name, count: 0, publisher: Publisher::new() }
+        Self { name, count: 0, publisher: LocalPublisher::new() }
     }
 
-    pub fn create_subscriber(&mut self) -> Subscriber<String> {
+    pub fn create_subscriber(&mut self) -> LocalSubscriber<String> {
         self.publisher.create_subscriber()
     }
 

@@ -1,14 +1,14 @@
 use ncomm::publisher_subscriber::Receive;
-use ncomm::publisher_subscriber::local::Subscriber;
+use ncomm::publisher_subscriber::local::LocalSubscriber;
 use ncomm::node::Node;
 
 pub struct MinimalSubscriber<'a> {
     name: &'a str,
-    subscriber: Subscriber<String>,
+    subscriber: LocalSubscriber<String>,
 }
 
 impl<'a> MinimalSubscriber<'a> {
-    pub const fn new(name: &'a str, subscriber: Subscriber<String>) -> Self {
+    pub const fn new(name: &'a str, subscriber: LocalSubscriber<String>) -> Self {
         Self { name, subscriber }
     }
 
