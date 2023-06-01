@@ -2,13 +2,14 @@ pub mod local;
 
 use std::error::Error;
 
-use crate::client_server::{Request, Response};
-
 /// "Empty" Update trait to be implemented by all Updates being sent by update servers.
 pub trait Update: PartialEq + Send + Clone {}
 
 /// Trait for UpdateClients to allow them to send requests and receive updates and responses.
-pub trait UpdateClient<Req: Request, Updt: Update, Res: Response, SendErr: Error>: Send {
+pub trait UpdateClient<Req: PartialEq + Send + Clone,
+                       Updt: PartialEq + Send + Clone,
+                       Res: PartialEq + Send + Clone,
+                       SendErr: Error>: Send {
     /// Sends a request to an Update Server
     /// 
     /// Args:
@@ -32,7 +33,9 @@ pub trait UpdateClient<Req: Request, Updt: Update, Res: Response, SendErr: Error
 }
 
 /// Trait for all Update Servers that allows them to receive requests and send updates and responses
-pub trait UpdateServer<Req: Request, Updt: Update, Res: Response, UpdtErr, ResErr>: Send {
+pub trait UpdateServer<Req: PartialEq + Send + Clone,
+                       Updt: PartialEq + Send + Clone,
+                       Res: PartialEq + Send + Clone, UpdtErr, ResErr>: Send {
     /// The type of Update Client (local, bluetooth, etc...)
     type UpdateClient;
 
