@@ -9,4 +9,3 @@ repository = "https://github.com/N8BWert/ncomm"
 readme = "README.md"
 
 [dependencies]
-ncomm_macro_derive = { version = "0.1.0", path = "ncomm_macro_derive" }
