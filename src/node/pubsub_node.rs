@@ -1,36 +1,67 @@
 use crate::node::Node;
 
-use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{Publisher, Subscriber}};
+use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{LocalPublisher, LocalSubscriber}};
 
+/// Test Local Publisher Node
+/// 
+/// This node was created to both demo the usage of the LocalPublisher and to debug
+/// the LocalPublisher to ensure it works correctly.
+/// 
+/// Params:
+///     name: the name of this node
+///     update_rate: the rate at which this node should be updated (ms)
+///     test_number: the current test number this node contains
+///     num_publisher: the LocalPublisher that will publish u128s.
 pub struct PublisherNode<'a> {
     name: &'a str,
     update_rate: u128,
     test_number: u128,
-    num_publisher: Publisher<u128>,
+    num_publisher: LocalPublisher<u128>,
 }
 
+/// Test Local Subscriber Node
+/// 
+/// This node was created to both demo the usage of the LocalSubscriber and to
+/// debug the LocalSubscriber to ensure it works correctly
+/// 
+/// Params:
+///     name: the name of this node
+///     update_rate: the rate at which this node should be updated (ms)
+///     num_subscriber: the LocalSubscriber that will subscribe to updates from the
+///         LocalPublisherNode
 pub struct SubscriberNode<'a> {
     name: &'a str,
     update_rate: u128,
-    num_subscriber: Option<Subscriber<u128>>,
+    num_subscriber: Option<LocalSubscriber<u128>>,
 }
 
 impl<'a> PublisherNode<'a> {
+    /// Creates a new PublisherNode
+    /// 
+    /// Args:
+    ///     name: the name for this publisher node
+    ///     update_rate: the update rate (in ms) of this publisher node
     pub const fn new(name: &'a str, update_rate: u128) -> Self {
         Self{
             name,
             update_rate,
             test_number: 0,
-            num_publisher: Publisher::new(),
+            num_publisher: LocalPublisher::new(),
         }
     }
 
-    pub fn subscribe_to_num_publisher(&mut self) -> Subscriber<u128> {
+    /// Returns the Subscriber end of the publisher node's publisher
+    pub fn subscribe_to_num_publisher(&mut self) -> LocalSubscriber<u128> {
         self.num_publisher.create_subscriber()
     }
 }
 
 impl<'a> SubscriberNode<'a> {
+    /// Creates a new subscriber node
+    /// 
+    /// Args:
+    ///     name: the name of this subscriber node
+    ///     update_rate: the update rate (in ms) of this subscriber node
     pub const fn new(name: &'a str, update_rate: u128) -> Self {
         Self{
             name,
@@ -39,7 +70,7 @@ impl<'a> SubscriberNode<'a> {
         }
     }
 
-    pub fn add_num_subscriber_subscriber(&mut self, subscriber: Subscriber<u128>) {
+    pub fn add_num_subscriber_subscriber(&mut self, subscriber: LocalSubscriber<u128>) {
         self.num_subscriber = Some(subscriber);
     }
 }

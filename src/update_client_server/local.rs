@@ -6,35 +6,63 @@ use crate::client_server::local::SendError;
 
 use crate::update_client_server::{Update, UpdateClient, UpdateServer};
 
+/// Local Implementation of an Update Client
+/// 
+/// Params:
+///     req_tx: the sender from this client to the server
+///     updt_rx: the receiver from the server to this client for updates
+///     res_rx: the receiver from the server to this client for responses
 pub struct LocalUpdateClient<Req: Request, Updt: Update, Res: Response> {
     req_tx: Sender<Req>,
     updt_rx: Receiver<Updt>,
     res_rx: Receiver<Res>,
 }
 
+/// Local Implementation of an group of server to client channels
+/// 
+/// Params:
+///     req_rx: the receiver from the client to this server for requests
+///     updt_tx: the sender from this server to the client (for updates)
+///     res_tx: the sender from this server to the client (for responses)
 struct LocalUpdateServerChannels<Req: Request, Updt: Update, Res: Response> {
     req_rx: Receiver<Req>,
     updt_tx: Sender<Updt>,
     res_tx: Sender<Res>,
 }
 
+/// Local Implementation of an Update Server
+/// 
+/// Params:
+///     client_mappings: a mapping of clients (by string name) to their server channel
+///         ends
 pub struct LocalUpdateServer<Req: Request, Updt: Update, Res: Response> {
     client_mappings: HashMap<String, LocalUpdateServerChannels<Req, Updt, Res>>,
 }
 
 impl<Req: Request, Updt: Update, Res: Response> LocalUpdateClient<Req, Updt, Res> {
+    /// Creates a new LocalUpdateClient with given req_tx, updt_rx, and res_rx
+    /// 
+    /// Args:
+    ///     req_tx: the request transmitter
+    ///     updt_rx: the update receiver
+    ///     res_rx: the response receiver
+    /// 
+    /// Returns:
+    ///     Self: A new LocalUpdateClient
     pub const fn new(req_tx: Sender<Req>, updt_rx: Receiver<Updt>, res_rx: Receiver<Res>) -> Self {
         Self { req_tx, updt_rx, res_rx }
     }
 }
 
 impl<Req: Request, Updt: Update, Res: Response> LocalUpdateServerChannels<Req, Updt, Res> {
-    pub const fn new(req_rx: Receiver<Req>, updt_tx: Sender<Updt>, res_tx: Sender<Res>) -> Self {
+    /// Creates a new LocalUpdateServer Channel object (used as a helpler for the LocalUpdateServer)
+    const fn new(req_rx: Receiver<Req>, updt_tx: Sender<Updt>, res_tx: Sender<Res>) -> Self {
         Self { req_rx, updt_tx, res_tx }
     }
 }
 
 impl<Req: Request, Updt: Update, Res: Response> LocalUpdateServer<Req, Updt, Res> {
+    /// Creates a new LocalUpdateServer with no clients
     pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
@@ -65,9 +93,9 @@ impl<Req: Request, Updt: Update, Res: Response> UpdateClient<Req, Updt, Res, mps
 }
 
 impl<Req: Request, Updt: Update, Res: Response> UpdateServer<Req, Updt, Res, SendError<Updt>, SendError<Res>> for LocalUpdateServer<Req, Updt, Res> {
-    type Client = LocalUpdateClient<Req, Updt, Res>;
+    type UpdateClient = LocalUpdateClient<Req, Updt, Res>;
 
-    fn create_client(&mut self, client_name: String) -> Self::Client {
+    fn create_update_client(&mut self, client_name: String) -> Self::UpdateClient {
         let (req_tx, req_rx) = mpsc::channel();
         let (updt_tx, updt_rx) = mpsc::channel();
         let (res_tx, res_rx) = mpsc::channel();
@@ -200,7 +228,7 @@ mod tests {
     #[test]
     fn test_create_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let _ = test_server.create_client(String::from("test client"));
+        let _ = test_server.create_update_client(String::from("test client"));
 
         assert_eq!(test_server.client_mappings.len(), 1);
     }
@@ -208,9 +236,9 @@ mod tests {
     #[test]
     fn test_get_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let _ = test_server.create_client(String::from("test client one"));
-        let _ = test_server.create_client(String::from("test client two"));
-        let _ = test_server.create_client(String::from("test client three"));
+        let _ = test_server.create_update_client(String::from("test client one"));
+        let _ = test_server.create_update_client(String::from("test client two"));
+        let _ = test_server.create_update_client(String::from("test client three"));
 
         let clients = test_server.get_clients();
         assert_eq!(clients.len(), 3);
@@ -219,7 +247,7 @@ mod tests {
     #[test]
     fn test_send_request_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let request = TestRequest::new(7);
         let err = test_client.send_request(request);
@@ -232,8 +260,8 @@ mod tests {
     #[test]
     fn test_send_multiple_requests_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client_one = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let test_client_one = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let request_one = TestRequest::new(7);
         let err = test_client_one.send_request(request_one);
@@ -261,7 +289,7 @@ mod tests {
     #[test]
     fn test_send_many_requests_from_same_client_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let err = test_client.send_request(TestRequest::new(7));
         assert_eq!(err, Ok(()));
@@ -280,7 +308,7 @@ mod tests {
     #[test]
     fn test_send_update_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let err = test_server.send_update(String::from("test client"), TestUpdate::new(7));
         assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
@@ -292,7 +320,7 @@ mod tests {
     #[test]
     fn test_receive_empty_update_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let update = test_client.receive_update();
         assert_eq!(None, update);
@@ -301,7 +329,7 @@ mod tests {
     #[test]
     fn test_send_multiple_updates_to_same_client_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let err = test_server.send_update(String::from("test client"), TestUpdate::new(7));
         assert_eq!(err, SendError::<TestUpdate>::NoError(String::from("test client")));
@@ -319,8 +347,8 @@ mod tests {
     #[test]
     fn test_send_updates_to_multiple_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client_one = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let test_client_one = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let update_one = TestUpdate::new(7);
         let update_two = TestUpdate::new(8);
@@ -342,8 +370,8 @@ mod tests {
     #[test]
     fn test_send_multiple_updates_to_multiple_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client_one = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let test_client_one = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let update_one = TestUpdate::new(7);
         let update_two = TestUpdate::new(8);
@@ -374,8 +402,8 @@ mod tests {
     #[test]
     fn test_send_update_to_one_of_many_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let _ = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let _ = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let update_one = TestUpdate::new(7);
 
@@ -389,7 +417,7 @@ mod tests {
     #[test]
     fn test_send_response_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let err = test_server.send_response(String::from("test client"), TestResponse::new(7));
         assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
@@ -401,7 +429,7 @@ mod tests {
     #[test]
     fn test_receive_empty_response_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let response = test_client.receive_response();
         assert_eq!(None, response);
@@ -410,7 +438,7 @@ mod tests {
     #[test]
     fn test_send_multiple_responses_to_same_client_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client = test_server.create_client(String::from("test client"));
+        let test_client = test_server.create_update_client(String::from("test client"));
 
         let err = test_server.send_response(String::from("test client"), TestResponse::new(7));
         assert_eq!(err, SendError::<TestResponse>::NoError(String::from("test client")));
@@ -428,8 +456,8 @@ mod tests {
     #[test]
     fn test_send_responses_to_multiple_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client_one = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let test_client_one = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let response_one = TestResponse::new(7);
         let response_two = TestResponse::new(8);
@@ -451,8 +479,8 @@ mod tests {
     #[test]
     fn test_send_multiple_responses_to_multiple_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let test_client_one = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let test_client_one = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let response_one = TestResponse::new(7);
         let response_two = TestResponse::new(8);
@@ -483,8 +511,8 @@ mod tests {
     #[test]
     fn test_send_response_to_one_of_many_clients_update_client_server() {
         let mut test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse> = LocalUpdateServer::new();
-        let _ = test_server.create_client(String::from("test client one"));
-        let test_client_two = test_server.create_client(String::from("test client two"));
+        let _ = test_server.create_update_client(String::from("test client one"));
+        let test_client_two = test_server.create_update_client(String::from("test client two"));
 
         let response_one = TestResponse::new(7);
 

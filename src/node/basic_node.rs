@@ -1,5 +1,14 @@
 use crate::node::Node;
 
+/// Test Basic Node
+/// 
+/// This node was meant to test the most basic possible node that contains its own data and
+/// does its own processing.
+/// 
+/// Params:
+///     name: the name of the node
+///     update_rate: the rate the node should be updated at (in ms)
+///     test_number: the internal number that changes giving BasicNode state.
 pub struct BasicNode<'a> {
     name: &'a str,
     update_rate: u128,
@@ -7,6 +16,11 @@ pub struct BasicNode<'a> {
 }
 
 impl<'a> BasicNode<'a> {
+    /// Creates a new Basic Node with given name and update rate
+    /// 
+    /// Args:
+    ///     name: the name for the new Basic Node
+    ///     update_rate: the rate this node should be updated at (in ms)
     pub const fn new(name: &'a str, update_rate: u128) -> Self {
         Self{ name, update_rate, test_number: 0}
     }

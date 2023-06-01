@@ -65,8 +65,8 @@ impl<'a> UpdateServerNode<'a> {
         }
     }
 
-    pub fn create_client(&mut self, client: String) -> LocalUpdateClient<TestRequest, TestUpdate, TestResponse> {
-        self.test_server.create_client(client)
+    pub fn create_update_client(&mut self, client: String) -> LocalUpdateClient<TestRequest, TestUpdate, TestResponse> {
+        self.test_server.create_update_client(client)
     }
 }
 
@@ -200,8 +200,8 @@ mod tests {
     #[test]
     fn test_create_update_client_server_nodes() {
         let mut server_node = UpdateServerNode::new("test update server node", 20);
-        let client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_client(String::from("test update client node one")));
-        let client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_client(String::from("test update client node two")));
+        let client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_update_client(String::from("test update client node one")));
+        let client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_update_client(String::from("test update client node two")));
 
         assert_eq!(server_node.name(), String::from("test update server node"));
         assert_eq!(server_node.get_update_rate(), 20);
@@ -226,8 +226,8 @@ mod tests {
     #[test]
     fn test_start_update_client_server_nodes() {
         let mut server_node = UpdateServerNode::new("test update server node", 20);
-        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_client(String::from("test update client node one")));
-        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_client(String::from("test update client node two")));
+        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_update_client(String::from("test update client node one")));
+        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_update_client(String::from("test update client node two")));
 
         server_node.start();
         client_node_one.start();
@@ -256,8 +256,8 @@ mod tests {
     #[test]
     fn test_update_update_client_server_nodes() {
         let mut server_node = UpdateServerNode::new("test update server node", 20);
-        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_client(String::from("test update client node one")));
-        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_client(String::from("test update client node two")));
+        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_update_client(String::from("test update client node one")));
+        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_update_client(String::from("test update client node two")));
 
         server_node.start();
         client_node_one.start();
@@ -299,8 +299,8 @@ mod tests {
     #[test]
     fn test_shutdown_client_server_nodes() {
         let mut server_node = UpdateServerNode::new("test update server node", 20);
-        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_client(String::from("test update client node one")));
-        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_client(String::from("test update client node two")));
+        let mut client_node_one = UpdateClientNode::new("test update client node one", 20, server_node.create_update_client(String::from("test update client node one")));
+        let mut client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_update_client(String::from("test update client node two")));
 
         server_node.start();
         client_node_one.start();
