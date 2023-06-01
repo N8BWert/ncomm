@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 ncomm = { path = "../../", version = "0.1.0" }
-ncomm_macro_derive = { path = "../../ncomm_macro_derive", version = "0.1.0" }

@@ -1,5 +1,4 @@
 extern crate ncomm;
-extern crate ncomm_macro_derive;
 
 use ncomm::executor::{Executor, simple_executor::SimpleExecutor};
 

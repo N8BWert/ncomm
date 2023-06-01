@@ -1,12 +1,9 @@
-use ncomm_macro_derive::{Request, Update, Response};
-
 use crate::node::Node;
 
-use crate::client_server::{Request, Response};
 use crate::update_client_server::{UpdateServer, UpdateClient};
-use crate::update_client_server::{Update, local::{LocalUpdateClient, LocalUpdateServer}};
+use crate::update_client_server::local::{LocalUpdateClient, LocalUpdateServer};
 
-#[derive(PartialEq, Clone, Debug, Request)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct TestRequest {
     data: u128
 }
@@ -16,7 +13,7 @@ impl TestRequest {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Update)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct TestUpdate {
     data: u128
 }
@@ -26,7 +23,7 @@ impl TestUpdate {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Response)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct TestResponse {
     data: u128
 }

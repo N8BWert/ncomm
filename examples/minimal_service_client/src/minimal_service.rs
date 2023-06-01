@@ -1,14 +1,13 @@
-use ncomm_macro_derive::{Request, Response};
-use ncomm::client_server::{Server, Request, Response, local::{LocalClient, LocalServer}};
+use ncomm::client_server::{Server, local::{LocalClient, LocalServer}};
 use ncomm::node::Node;
 
-#[derive(PartialEq, Clone, Request)]
+#[derive(PartialEq, Clone)]
 pub struct AddTwoIntsRequest {
     pub a: u8,
     pub b: u8,
 }
 
-#[derive(PartialEq, Clone, Response)]
+#[derive(PartialEq, Clone)]
 pub struct AddTwoIntsResponse {
     pub sum: u8,
 }
