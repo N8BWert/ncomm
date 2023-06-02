@@ -1,37 +1,7 @@
-use crate::executor::Executor;
+use crate::executor::{Executor, SingleThreadedExecutor, node_wrapper::NodeWrapper};
 use crate::node::Node;
 
-use std::{collections::BinaryHeap, cmp::{Ord, Ordering}, time::{Duration, SystemTime, UNIX_EPOCH}, thread};
-
-/// Wrapper for a node that gives it a priority based on its update rate
-/// 
-/// Params:
-///     priorty: the priority of the node (i.e. the timestamp of the next update)
-///     node: the node that will be updated after the priority timestamp it reached
-struct NodeWrapper<'a> {
-    pub priority: u128,
-    pub node: &'a mut dyn Node,
-}
-
-impl Ord for NodeWrapper<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.priority.cmp(&other.priority).reverse()
-    }
-}
-
-impl PartialOrd for NodeWrapper<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for NodeWrapper<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.priority == other.priority
-    }
-}
-
-impl Eq for NodeWrapper<'_> {}
+use std::{collections::BinaryHeap, time::{Duration, SystemTime, UNIX_EPOCH}, thread};
 
 /// Simple Implementation of an executor
 /// 
@@ -51,27 +21,43 @@ pub struct SimpleExecutor<'a> {
 impl<'a> SimpleExecutor<'a> {
     /// Creates a new Simple Executor
     pub fn new() -> Self {
-        Self{
+        Self {
             heap: BinaryHeap::new(),
+            start_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
+            interrupted: false
+        }
+    }
+
+    /// Creates a new Simple Executor with the nodes given
+    pub fn new_with(nodes: Vec<&'a mut dyn Node>) -> Self {
+        let mut heap = BinaryHeap::new();
+
+        for node in nodes {
+            node.start();
+            heap.push(
+                NodeWrapper {
+                    priority: node.get_update_rate(),
+                    node
+                }
+            );
+        }
+
+        Self {
+            heap,
             start_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
             interrupted: false
         }
     }
 }
 
-impl<'a> Executor<'a> for SimpleExecutor<'a> {
+impl<'a> SingleThreadedExecutor<'a> for SimpleExecutor<'a> {
     fn add_node(&mut self, new_node: &'a mut dyn Node) {
-        new_node.start();
         self.heap.push(
             NodeWrapper{
                 priority: new_node.get_update_rate(),
                 node: new_node
             }
         );
-    }
-
-    fn start(&mut self) {
-        self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     }
 
     fn update(&mut self) {
@@ -91,12 +77,31 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
     }
 
     fn update_for(&mut self, iterations: u128) {
+        self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
         for _ in 0..iterations {
             self.update();
         }
     }
+}
+
+impl<'a> Executor<'a> for SimpleExecutor<'a> {
+    fn start(&mut self) {
+        let mut vec = Vec::with_capacity(self.heap.len());
+
+        for node_wrapper in self.heap.drain() {
+            node_wrapper.node.start();
+            vec.push(node_wrapper);
+        }
+
+        for node_wrapper in vec {
+            self.heap.push(node_wrapper);
+        }
+    }
 
     fn update_for_seconds(&mut self, seconds: u128) {
+        self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
         let seconds = seconds * 1000;
         while SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() - self.start_time < seconds {
             self.update();
@@ -104,6 +109,8 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
     }
 
     fn update_loop(&mut self) {
+        self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
         self.interrupted = false;
         while !self.interrupted {
             self.update();
