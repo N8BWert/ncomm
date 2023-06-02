@@ -1,7 +1,10 @@
 use crate::executor::{Executor, SingleThreadedExecutor, node_wrapper::NodeWrapper};
 use crate::node::Node;
 
-use std::{collections::BinaryHeap, time::{Duration, SystemTime, UNIX_EPOCH}, thread};
+use std::collections::BinaryHeap;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::sync::mpsc::Receiver;
 
 /// Simple Implementation of an executor
 /// 
@@ -15,21 +18,23 @@ use std::{collections::BinaryHeap, time::{Duration, SystemTime, UNIX_EPOCH}, thr
 pub struct SimpleExecutor<'a> {
     heap: BinaryHeap<NodeWrapper<'a>>,
     start_time: u128,
-    interrupted: bool
+    interrupt_rx: Receiver<bool>,
+    interrupted: bool,
 }
 
 impl<'a> SimpleExecutor<'a> {
     /// Creates a new Simple Executor
-    pub fn new() -> Self {
+    pub fn new(interrupt_rx: Receiver<bool>) -> Self {
         Self {
             heap: BinaryHeap::new(),
             start_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
+            interrupt_rx,
             interrupted: false
         }
     }
 
     /// Creates a new Simple Executor with the nodes given
-    pub fn new_with(nodes: Vec<&'a mut dyn Node>) -> Self {
+    pub fn new_with(nodes: Vec<&'a mut dyn Node>, interrupt_rx: Receiver<bool>) -> Self {
         let mut heap = BinaryHeap::new();
 
         for node in nodes {
@@ -45,6 +50,7 @@ impl<'a> SimpleExecutor<'a> {
         Self {
             heap,
             start_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
+            interrupt_rx,
             interrupted: false
         }
     }
@@ -103,7 +109,7 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
         self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
 
         let seconds = seconds * 1000;
-        while SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() - self.start_time < seconds {
+        while SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() - self.start_time < seconds && !self.check_interrupt() {
             self.update();
         }
     }
@@ -111,14 +117,19 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
     fn update_loop(&mut self) {
         self.start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
 
-        self.interrupted = false;
-        while !self.interrupted {
+        while !self.check_interrupt() {
             self.update();
         }
     }
 
-    fn interrupt(&mut self) {
-        self.interrupted = true;
+    fn check_interrupt(&mut self) -> bool {
+        let iter = self.interrupt_rx.try_iter();
+        if let Some(interrupt) = iter.last() {
+            if interrupt != self.interrupted {
+                self.interrupted = interrupt;
+            }
+        }
+        return self.interrupted;
     }
 
     fn log(&self) {
@@ -135,14 +146,17 @@ mod tests {
     use crate::node::update_client_server_node::{UpdateServerNode, UpdateClientNode};
     use crate::node::udp_pubsub_node::{UdpPublisherNode, UdpSubscriberNode};
     use std::thread::scope;
+    use std::sync::mpsc;
 
     #[test]
     fn test_simple_executor_basic_node() {
+        let (_interrupt_tx, interrupt_rx)= mpsc::channel();
+
         // Create the basic nodes and executor
         let mut basic_node_one = BasicNode::new("test node 1", 12);
         let mut basic_node_two = BasicNode::new("test node 2", 13);
         let mut basic_node_three = BasicNode::new("test node 3", 3);
-        let mut simple_executor = SimpleExecutor::new();
+        let mut simple_executor = SimpleExecutor::new(interrupt_rx);
         simple_executor.add_node(&mut basic_node_one);
         simple_executor.add_node(&mut basic_node_two);
         simple_executor.add_node(&mut basic_node_three);
@@ -169,6 +183,9 @@ mod tests {
 
     #[test]
     fn test_two_simple_executors() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         // Initialize the nodes
         let mut basic_node_one: BasicNode = BasicNode::new("test node 1", 9);
         let mut basic_node_two: BasicNode = BasicNode::new("test node 2", 13);
@@ -178,12 +195,12 @@ mod tests {
         let mut basic_node_six: BasicNode = BasicNode::new("test node 6", 20);
 
         // Initialize the executors
-        let mut executor_one = SimpleExecutor::new();
+        let mut executor_one = SimpleExecutor::new(interrupt_rx_one);
         executor_one.add_node(&mut basic_node_one);
         executor_one.add_node(&mut basic_node_two);
         executor_one.add_node(&mut basic_node_three);
 
-        let mut executor_two = SimpleExecutor::new();
+        let mut executor_two = SimpleExecutor::new(interrupt_rx_two);
         executor_two.add_node(&mut basic_node_four);
         executor_two.add_node(&mut basic_node_five);
         executor_two.add_node(&mut basic_node_six);
@@ -236,12 +253,14 @@ mod tests {
 
     #[test]
     fn test_simple_executor_time() {
+        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
+
         // Create the basic nodes and executor
         let mut basic_node_one = BasicNode::new("test node 1", 15);
         let mut basic_node_two = BasicNode::new("test node 2", 4);
         let mut basic_node_three = BasicNode::new("test node 3", 5);
         let mut basic_node_four = BasicNode::new("test node 4", 2);
-        let mut simple_executor = SimpleExecutor::new();
+        let mut simple_executor = SimpleExecutor::new(interrupt_rx);
         simple_executor.add_node(&mut basic_node_one);
         simple_executor.add_node(&mut basic_node_two);
         simple_executor.add_node(&mut basic_node_three);
@@ -282,15 +301,18 @@ mod tests {
 
     #[test]
     fn test_two_simple_executors_time() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         // Initialize the nodes
         let mut basic_node_one: BasicNode = BasicNode::new("test node 1", 9);
         let mut basic_node_two: BasicNode = BasicNode::new("test node 2", 25);
 
         // Initialize the executors
-        let mut executor_one = SimpleExecutor::new();
+        let mut executor_one = SimpleExecutor::new(interrupt_rx_one);
         executor_one.add_node(&mut basic_node_one);
 
-        let mut executor_two = SimpleExecutor::new();
+        let mut executor_two = SimpleExecutor::new(interrupt_rx_two);
         executor_two.add_node(&mut basic_node_two);
 
         let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
@@ -328,9 +350,11 @@ mod tests {
 
     #[test]
     fn test_simple_executor_pubsub_node() {
+        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
+
         let mut publisher_node = PublisherNode::new("publisher node", 13);
         let mut subscriber_node = SubscriberNode::new("subscriber node", 10);
-        let mut simple_executor = SimpleExecutor::new();
+        let mut simple_executor = SimpleExecutor::new(interrupt_rx);
         subscriber_node.add_num_subscriber_subscriber(publisher_node.subscribe_to_num_publisher());
         simple_executor.add_node(&mut publisher_node);
         simple_executor.add_node(&mut subscriber_node);
@@ -350,10 +374,13 @@ mod tests {
 
     #[test]
     fn test_simple_executor_pubsub_node_different_executors() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut publisher_node = PublisherNode::new("publisher node", 13);
         let mut subscriber_node = SubscriberNode::new("subscriber node", 10);
-        let mut pub_executor = SimpleExecutor::new();
-        let mut sub_executor = SimpleExecutor::new();
+        let mut pub_executor = SimpleExecutor::new(interrupt_rx_one);
+        let mut sub_executor = SimpleExecutor::new(interrupt_rx_two);
         subscriber_node.add_num_subscriber_subscriber(publisher_node.subscribe_to_num_publisher());
         pub_executor.add_node(&mut publisher_node);
         sub_executor.add_node(&mut subscriber_node);
@@ -388,10 +415,13 @@ mod tests {
 
     #[test]
     fn test_simple_executor_pubsub_node_different_executors_time() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+    
         let mut publisher_node = PublisherNode::new("publisher node", 13);
         let mut subscriber_node = SubscriberNode::new("subscriber node", 10);
-        let mut pub_executor = SimpleExecutor::new();
-        let mut sub_executor = SimpleExecutor::new();
+        let mut pub_executor = SimpleExecutor::new(interrupt_rx_one);
+        let mut sub_executor = SimpleExecutor::new(interrupt_rx_two);
         subscriber_node.add_num_subscriber_subscriber(publisher_node.subscribe_to_num_publisher());
         pub_executor.add_node(&mut publisher_node);
         sub_executor.add_node(&mut subscriber_node);
@@ -433,10 +463,12 @@ mod tests {
 
     #[test]
     fn test_simple_executor_client_server_nodes() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+
         let mut server_node = ServerNode::new("server node", 10);
         let mut client_node_one = ClientNode::new("client node 1", 22, server_node.create_client(String::from("client node 1")));
         let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client(String::from("client node 2")));
-        let mut simple_executor = SimpleExecutor::new();
+        let mut simple_executor = SimpleExecutor::new(interrupt_rx_one);
         simple_executor.add_node(&mut server_node);
         simple_executor.add_node(&mut client_node_one);
         simple_executor.add_node(&mut client_node_two);
@@ -460,11 +492,14 @@ mod tests {
 
     #[test]
     fn test_simple_executor_client_server_nodes_different_executors() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut server_node = ServerNode::new("server node", 10);
         let mut client_node_one = ClientNode::new("client node 1", 15, server_node.create_client(String::from("client node 1")));
         let mut client_node_two = ClientNode::new("client node 2", 22, server_node.create_client(String::from("client node 2")));
-        let mut executor_one = SimpleExecutor::new();
-        let mut executor_two = SimpleExecutor::new();
+        let mut executor_one = SimpleExecutor::new(interrupt_rx_one);
+        let mut executor_two = SimpleExecutor::new(interrupt_rx_two);
         executor_one.add_node(&mut server_node);
         executor_one.add_node(&mut client_node_one);
         executor_two.add_node(&mut client_node_two);
@@ -502,11 +537,14 @@ mod tests {
 
     #[test]
     fn test_simple_executor_client_server_nodes_different_executors_time() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut server_node = ServerNode::new("server node", 12);
         let mut client_node_one = ClientNode::new("client node 1", 11, server_node.create_client(String::from("client node 1")));
         let mut client_node_two = ClientNode::new("client node 2", 25, server_node.create_client(String::from("client node 2")));
-        let mut executor_one = SimpleExecutor::new();
-        let mut executor_two = SimpleExecutor::new();
+        let mut executor_one = SimpleExecutor::new(interrupt_rx_one);
+        let mut executor_two = SimpleExecutor::new(interrupt_rx_two);
         executor_one.add_node(&mut server_node);
         executor_one.add_node(&mut client_node_one);
         executor_two.add_node(&mut client_node_two);
@@ -550,9 +588,11 @@ mod tests {
 
     #[test]
     fn test_simple_executor_update_client_server_nodes() {
+        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
+
         let mut server_node = UpdateServerNode::new("update server node", 20);
         let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
-        let mut simple_executor = SimpleExecutor::new();
+        let mut simple_executor = SimpleExecutor::new(interrupt_rx);
         simple_executor.add_node(&mut server_node);
         simple_executor.add_node(&mut client_node);
 
@@ -571,10 +611,13 @@ mod tests {
 
     #[test]
     fn test_simple_executor_update_client_server_nodes_different_executors() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut server_node = UpdateServerNode::new("update server node", 20);
         let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
-        let mut server_executor = SimpleExecutor::new();
-        let mut client_executor = SimpleExecutor::new();
+        let mut server_executor = SimpleExecutor::new(interrupt_rx_one);
+        let mut client_executor = SimpleExecutor::new(interrupt_rx_two);
         server_executor.add_node(&mut server_node);
         client_executor.add_node(&mut client_node);
 
@@ -608,10 +651,13 @@ mod tests {
 
     #[test]
     fn test_simple_executor_update_client_server_nodes_different_executors_time() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut server_node = UpdateServerNode::new("update server node", 20);
         let mut client_node = UpdateClientNode::new("update client node", 20, server_node.create_update_client(String::from("update client node")));
-        let mut server_executor = SimpleExecutor::new();
-        let mut client_executor = SimpleExecutor::new();
+        let mut server_executor = SimpleExecutor::new(interrupt_rx_one);
+        let mut client_executor = SimpleExecutor::new(interrupt_rx_two);
         server_executor.add_node(&mut server_node);
         client_executor.add_node(&mut client_node);
 
@@ -645,6 +691,8 @@ mod tests {
 
     #[test]
     fn test_simple_executor_udp_pubsub_nodes() {
+        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
+
         let mut publisher = UdpPublisherNode::new(
             "udp publisher node",
             20,
@@ -657,7 +705,7 @@ mod tests {
             "127.0.0.1:8021",
             "127.0.0.1:8020",
         );
-        let mut executor = SimpleExecutor::new();
+        let mut executor = SimpleExecutor::new(interrupt_rx);
         executor.add_node(&mut publisher);
         executor.add_node(&mut subscriber);
 
@@ -689,6 +737,9 @@ mod tests {
 
     #[test]
     fn test_simple_executor_udp_pubsub_nodes_different_executors() {
+        let (_interrupt_tx_one, interrupt_rx_one) = mpsc::channel();
+        let (_interrupt_tx_two, interrupt_rx_two) = mpsc::channel();
+
         let mut publisher = UdpPublisherNode::new(
             "udp publisher node",
             20,
@@ -701,8 +752,8 @@ mod tests {
             "127.0.0.1:8023",
             "127.0.0.1:8022",
         );
-        let mut pub_executor = SimpleExecutor::new();
-        let mut sub_executor = SimpleExecutor::new();
+        let mut pub_executor = SimpleExecutor::new(interrupt_rx_one);
+        let mut sub_executor = SimpleExecutor::new(interrupt_rx_two);
         pub_executor.add_node(&mut publisher);
         sub_executor.add_node(&mut subscriber);
 
@@ -739,6 +790,81 @@ mod tests {
                 assert_eq!(Some("udp subscriber node"), parts.next());
                 assert_eq!(Some("30"), parts.next());
                 assert_eq!(Some("11"), parts.next());
+            },
+            _ => assert_eq!(true, false),
+        }
+    }
+
+    #[test]
+    fn test_simple_executor_new_with() {
+        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
+
+        // Initialize the nodes
+        let mut basic_node_one = BasicNode::new("basic node", 10);
+        let mut server_node = ServerNode::new("server node", 11);
+        let mut client_node = ClientNode::new("client node", 12, server_node.create_client(String::from("client node")));
+        let mut publisher_node = PublisherNode::new("publisher node", 13);
+        let mut subscriber_node = SubscriberNode::new("subscriber node", 14);
+        subscriber_node.add_num_subscriber_subscriber(publisher_node.subscribe_to_num_publisher());
+        let mut update_server = UpdateServerNode::new("update server node", 15);
+        let mut update_client = UpdateClientNode::new("update client node", 16, update_server.create_update_client(String::from("update client node")));
+
+        let mut executor = SimpleExecutor::new_with(
+            vec![&mut basic_node_one, &mut server_node, &mut client_node,
+                       &mut publisher_node, &mut subscriber_node, &mut update_server,
+                       &mut update_client], interrupt_rx
+        );
+
+        let basic = executor.heap.pop().unwrap().node;
+        assert!(basic.debug().contains("basic node"));
+
+        let server = executor.heap.pop().unwrap().node;
+        assert!(server.debug().contains("server node"));
+
+        let client = executor.heap.pop().unwrap().node;
+        assert!(client.debug().contains("client node"));
+
+        let publisher = executor.heap.pop().unwrap().node;
+        assert!(publisher.debug().contains("publisher node"));
+
+        let subscriber = executor.heap.pop().unwrap().node;
+        assert!(subscriber.debug().contains("subscriber node"));
+
+        let update_server = executor.heap.pop().unwrap().node;
+        assert!(update_server.debug().contains("update server node"));
+
+        let update_client = executor.heap.pop().unwrap().node;
+        assert!(update_client.debug().contains("update client node"));
+    }
+
+    #[test]
+    fn test_simple_executor_update_loop_interrupt() {
+        let (interrupt_tx, interrupt_rx) = mpsc::channel();
+
+        let mut basic_node_one = BasicNode::new("basic node one", 100);
+        let mut basic_node_two = BasicNode::new("basic node two", 222);
+        let mut executor = SimpleExecutor::new_with(vec![&mut basic_node_one, &mut basic_node_two], interrupt_rx);
+
+        let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+        let exec = scope(|scope| {
+            let thread_handle = scope.spawn(|| {
+                executor.start();
+                executor.update_loop();
+                return executor;
+            });
+
+            thread::sleep(Duration::from_millis(1000));
+            interrupt_tx.send(true).unwrap();
+
+            thread_handle.join()
+        });
+
+        let end_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+
+        match exec {
+            Ok(_) => {
+                assert!(1000 <= end_time - start_time && end_time - start_time <= 1222);
             },
             _ => assert_eq!(true, false),
         }

@@ -17,7 +17,7 @@ pub trait Executor<'a> {
     fn update_loop(&mut self);
 
     // Interrupt the execution of this executor
-    fn interrupt(&mut self);
+    fn check_interrupt(&mut self) -> bool;
 
     /// A useful function to log any important information about this executor (will
     /// be mostly used for errors)
