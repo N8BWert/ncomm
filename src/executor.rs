@@ -21,7 +21,7 @@ pub trait Executor<'a> {
 
     /// A useful function to log any important information about this executor (will
     /// be mostly used for errors)
-    fn log(&self);
+    fn log(&self, message: &str);
 }
 
 /// Trait to be implemented by all single threaded executors to allow the addition of nodes

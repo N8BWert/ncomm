@@ -132,8 +132,9 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
         return self.interrupted;
     }
 
-    fn log(&self) {
-        // TODO: Figure out what needs to be logged
+    fn log(&self, message: &str) {
+        // TODO: In the future more complicated logging is likely
+        println!("{}", message);
     }
 }
 
