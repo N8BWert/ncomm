@@ -41,5 +41,5 @@ pub trait SingleThreadedExecutor<'a> {
 /// of nodes into specific threads of the multi threaded executor.
 pub trait MultiThreadedExecutor<'a> {
     /// Adds a given node to the specific thread of the multi threaded executor
-    fn add_node_to(&mut self, new_node: &'a mut dyn Node, thread: String);
+    fn add_node_to(&mut self, new_node: &'a mut dyn Node, thread: &str);
 }

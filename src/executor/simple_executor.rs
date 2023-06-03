@@ -16,7 +16,7 @@ use std::sync::mpsc::Receiver;
 ///     start_time: the time this simple executor was started
 ///     interrupted: whether or not this node has been interrupted
 pub struct SimpleExecutor<'a> {
-    heap: BinaryHeap<NodeWrapper<'a>>,
+    pub(in crate::executor) heap: BinaryHeap<NodeWrapper<'a>>,
     start_time: u128,
     interrupt_rx: Receiver<bool>,
     interrupted: bool,
