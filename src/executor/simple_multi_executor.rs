@@ -10,22 +10,28 @@ pub struct SimpleMultiExecutor<'a> {
     threads: HashMap<String, SimpleExecutor<'a>>,
     interrupt_txs: Vec<Sender<bool>>,
     interrupt_rx: Receiver<bool>,
+    interrupt_tx: Sender<bool>,
     interrupted: bool,
 }
 
 impl<'a> SimpleMultiExecutor<'a> {
     /// Create a new empty Simple Executor
-    pub fn new(interrupt_rx: Receiver<bool>) -> Self {
+    pub fn new() -> Self {
+        let (interrupt_tx, interrupt_rx) = mpsc::channel();
+
         Self {
             threads: HashMap::new(),
             interrupt_txs: Vec::new(),
             interrupt_rx,
+            interrupt_tx,
             interrupted: false
         }
     }
 
     /// Creates a new Simple Executor with the nodes given
-    pub fn new_with(nodes: Vec<(&str, &'a mut dyn Node)>, interrupt_rx: Receiver<bool>) -> Self {
+    pub fn new_with(nodes: Vec<(&str, &'a mut dyn Node)>) -> Self {
+        let (interrupt_tx, interrupt_rx) = mpsc::channel();
+
         let mut map: HashMap<String, SimpleExecutor> = HashMap::new();
         let mut interrupt_txs = Vec::new();
 
@@ -49,8 +55,17 @@ impl<'a> SimpleMultiExecutor<'a> {
             threads: map,
             interrupt_txs,
             interrupt_rx,
+            interrupt_tx,
             interrupted: false
         }
+    }
+
+    /// Returns a clone of the interrupt transmitter to this node
+    /// 
+    /// Returns:
+    ///     Sender<bool>: the interrupt sender to this executor
+    pub fn get_interrupt_tx(&self) -> Sender<bool> {
+        self.interrupt_tx.clone()
     }
 }
 
@@ -200,9 +215,7 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_new() {
-        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
-
-        let executor = SimpleMultiExecutor::new(interrupt_rx);
+        let executor = SimpleMultiExecutor::new();
 
         assert_eq!(executor.threads.len(), 0);
         assert_eq!(executor.interrupt_txs.len(), 0);
@@ -211,8 +224,6 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_new_with() {
-        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
-
         let mut node_one = BasicNode::new("node one", 10);
         let mut node_two = BasicNode::new("node two", 33);
 
@@ -220,8 +231,7 @@ mod tests {
             vec![
                 ("thread_one", &mut node_one),
                 ("thread two", &mut node_two),
-            ],
-            interrupt_rx
+            ]
         );
 
         assert_eq!(executor.threads.len(), 2);
@@ -231,11 +241,9 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_add_new_node() {
-        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
-
         let mut node = BasicNode::new("Node one", 22);
 
-        let mut executor = SimpleMultiExecutor::new(interrupt_rx);
+        let mut executor = SimpleMultiExecutor::new();
         executor.add_node_to(&mut node, "thread two");
 
         assert_eq!(executor.threads.len(), 1);
@@ -245,8 +253,6 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_start() {
-        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
-
         let mut node_one = BasicNode::new("node one", 22);
         let mut node_two = BasicNode::new("node two", 33);
 
@@ -254,8 +260,7 @@ mod tests {
             vec![
                 ("thread one", &mut node_one),
                 ("thread two", &mut node_two)
-            ],
-            interrupt_rx
+            ]
         );
 
         executor.start();
@@ -271,8 +276,6 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_update_for_seconds() {
-        let (_interrupt_tx, interrupt_rx) = mpsc::channel();
-
         let mut node_one = BasicNode::new("node one", 22);
         let mut node_two = BasicNode::new("node two", 10);
 
@@ -280,8 +283,7 @@ mod tests {
             vec![
                 ("thread one", &mut node_one),
                 ("thread two", &mut node_two)
-            ],
-            interrupt_rx
+            ]
         );
 
         executor.start();
@@ -298,8 +300,6 @@ mod tests {
 
     #[test]
     fn test_simple_multi_executor_update_loop_for_one_second() {
-        let (interrupt_tx, interrupt_rx) = mpsc::channel();
-
         let mut node_one = BasicNode::new("node one", 22);
         let mut node_two = BasicNode::new("node two", 10);
 
@@ -307,11 +307,12 @@ mod tests {
             vec![
                 ("thread one", &mut node_one),
                 ("thread two", &mut node_two)
-            ],
-            interrupt_rx
+            ]
         );
 
         let start_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+        
+        let interrupt_tx = executor.get_interrupt_tx();
 
         let exec = thread::scope(|scope| {
             let handle = scope.spawn(|| {
