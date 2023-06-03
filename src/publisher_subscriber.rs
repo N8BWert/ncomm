@@ -6,8 +6,7 @@ pub trait Publish<Data: Send + Clone> {
     /// Sends data to a subscriber
     /// 
     /// Args:
-    ///     &self - the subscriber struct
-    ///     data: T - the data to be sent
+    ///     data: the data to be sent
     fn send(&self, data: Data);
 }
 

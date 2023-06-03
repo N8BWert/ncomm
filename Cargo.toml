@@ -9,3 +9,4 @@ repository = "https://github.com/N8BWert/ncomm"
 readme = "README.md"
 
 [dependencies]
+ctrlc = "3.4.0"
