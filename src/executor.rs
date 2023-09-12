@@ -1,3 +1,11 @@
+//!
+//! Wrapper that manages the scheduling of Nodes.
+//! 
+//! An Executor should maintain references to a number of nodes and schedule their
+//! updates.  The idea here is that each executor can pretty much be its own thread
+//! that manages its own set of processes.
+//! 
+
 pub mod simple_executor;
 pub mod simple_multi_executor;
 pub mod node_wrapper;

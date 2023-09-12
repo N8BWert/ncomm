@@ -1,3 +1,13 @@
+//!
+//! Executes the update step of nodes on a singular thread.
+//! 
+//! A simple executor that stores nodes in a binary head updating the nodes one by one
+//! and adding them back to the heap with priority equal to their next update timestamp.
+//! 
+//! This executor is "scoped" thread safe so it can be sent to scoped threads to update its
+//! nodes as another process.
+//! 
+
 use crate::executor::{Executor, SingleThreadedExecutor, node_wrapper::NodeWrapper};
 use crate::node::Node;
 
@@ -10,11 +20,6 @@ use std::sync::mpsc::Receiver;
 /// 
 /// This simple executor stores Nodes in a Binary heap with with priority equal to the
 /// timestamp of the node's next update.
-/// 
-/// Params:
-///     heap: the binary heap storing Nodes and priorities for their next updates
-///     start_time: the time this simple executor was started
-///     interrupted: whether or not this node has been interrupted
 pub struct SimpleExecutor<'a> {
     pub(in crate::executor) heap: BinaryHeap<NodeWrapper<'a>>,
     start_time: u128,
@@ -41,7 +46,7 @@ impl<'a> SimpleExecutor<'a> {
             node.start();
             heap.push(
                 NodeWrapper {
-                    priority: node.get_update_rate(),
+                    priority: node.get_update_delay(),
                     node
                 }
             );
@@ -60,7 +65,7 @@ impl<'a> SingleThreadedExecutor<'a> for SimpleExecutor<'a> {
     fn add_node(&mut self, new_node: &'a mut dyn Node) {
         self.heap.push(
             NodeWrapper{
-                priority: new_node.get_update_rate(),
+                priority: new_node.get_update_delay(),
                 node: new_node
             }
         );
@@ -78,7 +83,7 @@ impl<'a> SingleThreadedExecutor<'a> for SimpleExecutor<'a> {
         // Get and update the next node
         let mut node_wrapper = self.heap.pop().unwrap();
         node_wrapper.node.update();
-        node_wrapper.priority += node_wrapper.node.get_update_rate();
+        node_wrapper.priority += node_wrapper.node.get_update_delay();
         self.heap.push(node_wrapper);
     }
 

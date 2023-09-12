@@ -1,3 +1,12 @@
+//!
+//! Executor that manages multiple single-threaded executors (Preferred).
+//! 
+//! The Multi-Threaded Executor provides a simple-to-use api for users to add a large number
+//! of nodes to a large number of possible threads.  The basic premise of this executor
+//! is that there are a large number of single-threaded executors that are managed by a singular main
+//! thread that has the ability to monitor and interrupt the other executors.
+//! 
+
 use crate::executor::{Executor, SingleThreadedExecutor, MultiThreadedExecutor, simple_executor::SimpleExecutor};
 use crate::node::Node;
 
@@ -6,6 +15,9 @@ use std::time::Duration;
 use std::thread;
 use std::sync::{mpsc, mpsc::{Receiver, Sender}};
 
+/// Multi-Threaded Executor that maps a large number of single executors to
+/// strings (thread names) and manages the multi-threaded execution and interrupts for
+/// each of these executors
 pub struct SimpleMultiExecutor<'a> {
     threads: HashMap<String, SimpleExecutor<'a>>,
     interrupt_txs: Vec<Sender<bool>>,
