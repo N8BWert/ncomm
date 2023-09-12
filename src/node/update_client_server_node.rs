@@ -1,8 +1,13 @@
+//!
+//! Basic Update Client + Server Node Example.
+//! 
+
 use crate::node::Node;
 
 use crate::update_client_server::{UpdateServer, UpdateClient};
 use crate::update_client_server::local::{LocalUpdateClient, LocalUpdateServer};
 
+/// Request Sent from the Update Client to the Update Server
 #[derive(PartialEq, Clone, Debug)]
 pub struct TestRequest {
     data: u128
@@ -13,6 +18,7 @@ impl TestRequest {
     }
 }
 
+/// Update Sent from the Update Server back to the Update Client
 #[derive(PartialEq, Clone, Debug)]
 pub struct TestUpdate {
     data: u128
@@ -23,6 +29,7 @@ impl TestUpdate {
     }
 }
 
+/// Final Response Sent from the Update Server back to the Update Client
 #[derive(PartialEq, Clone, Debug)]
 pub struct TestResponse {
     data: u128
@@ -33,28 +40,37 @@ impl TestResponse {
     }
 }
 
+/// Test Update Server Node
+/// 
+/// This node is used to test the most basic functionality of the local update
+/// server.
 pub struct UpdateServerNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u128,
     received_requests: u128,
     num_sent_updates: u8,
     test_server: LocalUpdateServer<TestRequest, TestUpdate, TestResponse>,
 }
 
+/// Test Update Client Node
+/// 
+/// This node is used to test the most basic functionality of the local update
+/// client.
 pub struct UpdateClientNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u128,
     test_client: LocalUpdateClient<TestRequest, TestUpdate, TestResponse>,
     sent_first_request: bool,
 }
 
 impl<'a> UpdateServerNode<'a> {
-    pub fn new(name: &'a str, update_rate: u128) -> Self {
+    /// Create a new Update Server Node
+    pub fn new(name: &'a str, update_delay: u128) -> Self {
         Self {
             name,
-            update_rate,
+            update_delay,
             test_number: 0,
             received_requests: 0,
             num_sent_updates: 0,
@@ -62,16 +78,18 @@ impl<'a> UpdateServerNode<'a> {
         }
     }
 
+    /// Create an Update Client Endpoint
     pub fn create_update_client(&mut self, client: String) -> LocalUpdateClient<TestRequest, TestUpdate, TestResponse> {
         self.test_server.create_update_client(client)
     }
 }
 
 impl<'a> UpdateClientNode<'a> {
-    pub const fn new(name: &'a str, update_rate: u128, client: LocalUpdateClient<TestRequest, TestUpdate, TestResponse>) -> Self {
+    /// Create a new Update Client Node.
+    pub const fn new(name: &'a str, update_delay: u128, client: LocalUpdateClient<TestRequest, TestUpdate, TestResponse>) -> Self {
         Self {
             name,
-            update_rate,
+            update_delay,
             test_number: 0,
             test_client: client,
             sent_first_request: false,
@@ -86,6 +104,10 @@ impl<'a> Node for UpdateServerNode<'a> {
 
     fn start(&mut self) {
         self.test_number = 1;
+    }
+
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn update(&mut self) {
@@ -117,10 +139,6 @@ impl<'a> Node for UpdateServerNode<'a> {
         }
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
-    }
-
     fn shutdown(&mut self) {
         let clients = self.test_server.get_clients();
         let mut responses = Vec::with_capacity(clients.len());
@@ -135,7 +153,7 @@ impl<'a> Node for UpdateServerNode<'a> {
         format!(
             "Update Server Node:\n{}\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.test_number
         )
     }
@@ -148,6 +166,10 @@ impl<'a> Node for UpdateClientNode<'a> {
 
     fn start(&mut self) {
         self.test_number = 1;
+    }
+
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn update(&mut self) {
@@ -170,10 +192,6 @@ impl<'a> Node for UpdateClientNode<'a> {
         }
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
-    }
-
     fn shutdown(&mut self) {
         if let Some(response) = self.test_client.receive_response() {
             self.test_number = response.data;
@@ -184,7 +202,7 @@ impl<'a> Node for UpdateClientNode<'a> {
         format!(
             "Update Client Node:\n{}\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.test_number
         )
     }

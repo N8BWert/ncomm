@@ -1,3 +1,7 @@
+//!
+//! Basic Client + Server Node Example.
+//! 
+
 use std::num::Wrapping;
 
 use crate::node::Node;
@@ -5,56 +9,71 @@ use crate::node::Node;
 use crate::client_server::{Server, Client};
 use crate::client_server::local::{LocalClient, LocalServer};
 
+/// Request Sent from the Client to the Server.
 #[derive(PartialEq, Clone, Debug)]
 pub struct TestRequest {
     data: u128
 }
 impl TestRequest {
+    /// Creates a new Request with given data.
     pub const fn new(data: u128) -> Self {
         Self { data }
     }
 }
 
+/// Response Sent back from the Server to the Client
 #[derive(PartialEq, Clone, Debug)]
 pub struct TestResponse {
     data: u128
 }
 impl TestResponse {
+    /// Creates a new Response with given data.
     pub const fn new(data: u128) -> Self {
         Self { data }
     }
 }
 
+/// Test Server Node
+/// 
+/// This node is used to test the most basic possible node that contains a
+/// local server.
 pub struct ServerNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_server: LocalServer<TestRequest, TestResponse>,
 }
 
+/// Test Client Node
+/// 
+/// This node is used to test the most basic possible node that contains a
+/// local client.
 pub struct ClientNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u128,
     test_client: LocalClient<TestRequest, TestResponse>,
 }
 
 impl<'a> ServerNode<'a> {
-    pub fn new(name: &'a str, update_rate: u128) -> Self {
+    /// Creates a new Server node with given name and update delay
+    pub fn new(name: &'a str, update_delay: u128) -> Self {
         Self{
             name,
-            update_rate,
+            update_delay,
             test_server: LocalServer::new()
         }
     }
 
+    /// Create a new client for this node's server
     pub fn create_client(&mut self, client_name: String) -> LocalClient<TestRequest, TestResponse> {
         self.test_server.create_client(client_name)
     }
 }
 
 impl<'a> ClientNode<'a> {
-    pub const fn new(name: &'a str, update_rate: u128, client: LocalClient<TestRequest, TestResponse>) -> Self {
-        Self { name, update_rate, test_number: 0, test_client: client }
+    /// Create a new Client Node with given name, update delay and client.
+    pub const fn new(name: &'a str, update_delay: u128, client: LocalClient<TestRequest, TestResponse>) -> Self {
+        Self { name, update_delay, test_number: 0, test_client: client }
     }
 }
 
@@ -74,8 +93,8 @@ impl<'a> Node for ServerNode<'a> {
         self.test_server.send_responses(responses);
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn shutdown(&mut self) {
@@ -91,7 +110,7 @@ impl<'a> Node for ServerNode<'a> {
         format!(
             "Server Node:\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
         )
     }
 }
@@ -116,8 +135,8 @@ impl<'a> Node for ClientNode<'a> {
         let _err = self.test_client.send_request(TestRequest{ data: self.test_number });
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn shutdown(&mut self) {
@@ -130,7 +149,7 @@ impl<'a> Node for ClientNode<'a> {
         format!(
         "Client Node:\n{}\n{}\n{}",
         self.name(),
-        self.update_rate,
+        self.update_delay,
         self.test_number
         )
     }

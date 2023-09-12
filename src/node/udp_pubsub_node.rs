@@ -1,3 +1,7 @@
+//!
+//! Basic UDP Publisher + Client Example.
+//! 
+
 use crate::node::Node;
 
 use crate::publisher_subscriber::{Publish, Receive, udp::{UdpPublisher, UdpSubscriber}};
@@ -6,15 +10,9 @@ use crate::publisher_subscriber::{Publish, Receive, udp::{UdpPublisher, UdpSubsc
 /// 
 /// This node was created to both demo the usage of the UdpPublisher and to debug
 /// the UdpPublisher to ensure it works correctly
-/// 
-/// Params:
-///     name: the name of this node
-///     update_rate: the rate at which this node should be updated (ms)
-///     test_number: the current test number this node contains
-///     num_publisher: the UdpPublisher that will publish a singular u8
 pub struct UdpPublisherNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u8,
     num_publisher: UdpPublisher<'a, u8, 1>,
 }
@@ -23,30 +21,18 @@ pub struct UdpPublisherNode<'a> {
 /// 
 /// This node was created to both demo the usage of the UdpSubsciber and to debug
 /// the UdpSubscriber to ensure it works correctly
-/// 
-/// Params:
-///     name: the name of this node
-///     update_rate: the rate at which this node should be updated (ms)
-///     num_subscriber: the UdpSubscriber that will subscribe to the updates of the above
-///         UdpPublisherNode.
 pub struct UdpSubscriberNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     num_subscriber: UdpSubscriber<u8, 1>,
 }
 
 impl<'a> UdpPublisherNode<'a> {
     /// Creates a new UdpPublisherNode
-    /// 
-    /// Args:
-    ///     name: the name for this publisher node
-    ///     update_rate: the update rate (in ms) of this udp publisher node
-    ///     bind_address: the address this publisher should bind to
-    ///     addresses: the addresses this udp publisher node should send to
-    pub fn new(name: &'a str, update_rate: u128, bind_address: &'a str, addresses: Vec<&'a str>) -> Self {
+    pub fn new(name: &'a str, update_delay: u128, bind_address: &'a str, addresses: Vec<&'a str>) -> Self {
         Self {
             name,
-            update_rate,
+            update_delay,
             test_number: 0,
             num_publisher: UdpPublisher::new(bind_address, addresses),
         }
@@ -55,16 +41,10 @@ impl<'a> UdpPublisherNode<'a> {
 
 impl<'a> UdpSubscriberNode<'a> {
     /// Creates a new UdpSubscriberNode
-    /// 
-    /// Args:
-    ///     name: the name for this subscriber ndoe
-    ///     update_rate: the update rate (in ms) of this udp subscriber node
-    ///     bind_address: the address this subscriber should bind to
-    ///     from_address: the address this subscriber should look at data from
-    pub fn new(name: &'a str, update_rate: u128, bind_address: &'a str, from_address: &'a str) -> Self {
+    pub fn new(name: &'a str, update_delay: u128, bind_address: &'a str, from_address: &'a str) -> Self {
         Self {
             name,
-            update_rate,
+            update_delay,
             num_subscriber: UdpSubscriber::new(bind_address, from_address),
         }
     }
@@ -73,7 +53,7 @@ impl<'a> UdpSubscriberNode<'a> {
 impl<'a> Node for UdpPublisherNode<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { self.update_rate }
+    fn get_update_delay(&self) -> u128 { self.update_delay }
 
     fn start(&mut self) {
         self.test_number = 1;
@@ -93,7 +73,7 @@ impl<'a> Node for UdpPublisherNode<'a> {
         format!(
             "UDP Publisher Node:\n{}\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.test_number,
         )
     }
@@ -102,7 +82,7 @@ impl<'a> Node for UdpPublisherNode<'a> {
 impl<'a> Node for UdpSubscriberNode<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { self.update_rate }
+    fn get_update_delay(&self) -> u128 { self.update_delay }
 
     fn start(&mut self) {}
 
@@ -118,7 +98,7 @@ impl<'a> Node for UdpSubscriberNode<'a> {
         format!(
             "UDP Subscriber Node:\n{}\n{}\n{:?}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             if let Some(data) = self.num_subscriber.data { data } else { 0 },
         )
     }
