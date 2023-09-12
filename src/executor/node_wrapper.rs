@@ -1,6 +1,11 @@
+//!
+//! The Node Wrapper wraps a mutable reference to a node with information regarding its next
+//! update timestamp.
+//! 
+
 use crate::node::Node;
 
-use std::{cmp::{Ord, Ordering}};
+use std::cmp::{Ord, Ordering};
 
 /// Wrapper for a node that gives it a priority based on its update rate
 /// 

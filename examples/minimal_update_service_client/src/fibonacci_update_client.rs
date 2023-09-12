@@ -17,7 +17,7 @@ impl<'a> FibonacciUpdateClient<'a> {
 impl<'a> Node for FibonacciUpdateClient<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { 10u128 }
+    fn get_update_delay(&self) -> u128 { 10u128 }
 
     fn start(&mut self) {
         self.update_client.send_request(FibonacciRequest { order: 10 }).unwrap();

@@ -1,3 +1,10 @@
+//!
+//! Client - Server Communication
+//! 
+//! The idea here is that over time a large number of ways for clients to communicate
+//! with servers should implement the Client and Server Traits.
+//! 
+
 pub mod local;
 
 use std::error::Error;

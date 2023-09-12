@@ -1,8 +1,16 @@
-use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
+//!
+//! A local mpsc channel-based Client + Server.
+//! 
+//! The Local Client + Server sends data along a mpsc channel from the client
+//! to the server and back to the client.
+//! 
+
+use std::sync::{mpsc, mpsc::{Sender, Receiver}};
 use std::collections::HashMap;
 
 use crate::client_server::{Client, Server};
 
+/// Error from sending data along the local client + server.
 #[derive(PartialEq, Debug)]
 pub enum SendError<T> {
     NoError(String),
@@ -10,18 +18,22 @@ pub enum SendError<T> {
     SendIncomplete((String, mpsc::SendError<T>)),
 }
 
+/// A Local Client that sends data to a Local Server.
 pub struct LocalClient<Req: PartialEq + Send + Clone,
                        Res: PartialEq + Send + Clone> {
     req_tx: Sender<Req>,
     res_rx: Receiver<Res>
 }
 
+/// A Singular Channel from a Local Client to the Local Server.
 struct LocalServerChannels<Req: PartialEq + Send + Clone,
                            Res: PartialEq + Send + Clone> {
     req_rx: Receiver<Req>,
     res_tx: Sender<Res>,
 }
 
+/// A Local Server receives data from a client (of many) processes the data
+/// and sends a response back to the client.
 pub struct LocalServer<Req: PartialEq + Send + Clone,
                        Res: PartialEq + Send + Clone> {
     client_mappings: HashMap<String, LocalServerChannels<Req, Res>>,
@@ -29,6 +41,7 @@ pub struct LocalServer<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalClient<Req, Res> {
+    /// Creates a new Local Client with Given sender and receiver.
     pub const fn new(req_tx: Sender<Req>, res_rx: Receiver<Res>) -> Self {
         Self {req_tx, res_rx }
     }
@@ -36,17 +49,26 @@ impl<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
     Res: PartialEq + Send + Clone> LocalServerChannels<Req, Res> {
-    pub const fn new(req_rx: Receiver<Req>, res_tx: Sender<Res>) -> Self {
+    
+    const fn new(req_rx: Receiver<Req>, res_tx: Sender<Res>) -> Self {
         Self { req_rx, res_tx }
     }
 }
 
 impl<Req: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalServer<Req, Res> {
+    /// Creates a new Local Server
     pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
 }
+
+impl<Req: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> Default for LocalServer<Req, Res> {
+        fn default() -> Self {
+            Self::new()
+        }
+     }
 
 impl<Req: PartialEq + Send + Clone,
     Res: PartialEq + Send + Clone> Client<Req, Res, mpsc::SendError<Req>> for LocalClient<Req, Res> {
@@ -60,7 +82,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(response) = iter.last() {
             return Some(response);
         }
-        return None;
+        None
     }
 }
 
@@ -75,7 +97,7 @@ impl<Req: PartialEq + Send + Clone,
         let channels = LocalServerChannels::new(req_rx, res_tx);
         self.client_mappings.insert(client_name, channels);
 
-        return LocalClient::new(req_tx, res_rx);
+        LocalClient::new(req_tx, res_rx)
     }
 
     fn get_clients(&self) -> Vec<String> {
@@ -85,7 +107,7 @@ impl<Req: PartialEq + Send + Clone,
             clients.push(client.clone());
         }
 
-        return clients;
+        clients
     }
 
     fn receive_requests(&self) -> Vec<(String, Req)> {
@@ -98,18 +120,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return requests;
+        requests
     }
 
     fn send_response(&self, client: String, response: Res) -> SendError<Res> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.res_tx.send(response) {
-                return SendError::<Res>::SendIncomplete((client, send_err));
+                SendError::<Res>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Res>::NoError(client);
+                SendError::<Res>::NoError(client)
             }
         } else {
-            return SendError::<Res>::ClientNotFound(client);
+            SendError::<Res>::ClientNotFound(client)
         }
     }
 
@@ -128,7 +150,7 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 }
 

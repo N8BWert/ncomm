@@ -17,7 +17,7 @@ impl<'a> MinimalClient<'a> {
 impl<'a> Node for MinimalClient<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { 10u128 }
+    fn get_update_delay(&self) -> u128 { 10u128 }
 
     fn start(&mut self) {
         self.client.send_request(AddTwoIntsRequest { a: 10, b: 20}).unwrap();

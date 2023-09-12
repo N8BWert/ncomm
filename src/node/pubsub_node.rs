@@ -1,3 +1,7 @@
+//!
+//! Basic Publisher + Server Node Example.
+//! 
+
 use crate::node::Node;
 
 use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{LocalPublisher, LocalSubscriber}};
@@ -6,15 +10,9 @@ use crate::publisher_subscriber::{Publish, Subscribe, Receive, local::{LocalPubl
 /// 
 /// This node was created to both demo the usage of the LocalPublisher and to debug
 /// the LocalPublisher to ensure it works correctly.
-/// 
-/// Params:
-///     name: the name of this node
-///     update_rate: the rate at which this node should be updated (ms)
-///     test_number: the current test number this node contains
-///     num_publisher: the LocalPublisher that will publish u128s.
 pub struct PublisherNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u128,
     num_publisher: LocalPublisher<u128>,
 }
@@ -23,28 +21,18 @@ pub struct PublisherNode<'a> {
 /// 
 /// This node was created to both demo the usage of the LocalSubscriber and to
 /// debug the LocalSubscriber to ensure it works correctly
-/// 
-/// Params:
-///     name: the name of this node
-///     update_rate: the rate at which this node should be updated (ms)
-///     num_subscriber: the LocalSubscriber that will subscribe to updates from the
-///         LocalPublisherNode
 pub struct SubscriberNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     num_subscriber: Option<LocalSubscriber<u128>>,
 }
 
 impl<'a> PublisherNode<'a> {
     /// Creates a new PublisherNode
-    /// 
-    /// Args:
-    ///     name: the name for this publisher node
-    ///     update_rate: the update rate (in ms) of this publisher node
-    pub const fn new(name: &'a str, update_rate: u128) -> Self {
+    pub const fn new(name: &'a str, update_delay: u128) -> Self {
         Self{
             name,
-            update_rate,
+            update_delay,
             test_number: 0,
             num_publisher: LocalPublisher::new(),
         }
@@ -58,18 +46,15 @@ impl<'a> PublisherNode<'a> {
 
 impl<'a> SubscriberNode<'a> {
     /// Creates a new subscriber node
-    /// 
-    /// Args:
-    ///     name: the name of this subscriber node
-    ///     update_rate: the update rate (in ms) of this subscriber node
-    pub const fn new(name: &'a str, update_rate: u128) -> Self {
+    pub const fn new(name: &'a str, update_delay: u128) -> Self {
         Self{
             name,
-            update_rate,
+            update_delay,
             num_subscriber: None,
         }
     }
 
+    /// Adds a subscriber endpoint to this Node's num_subscriber endpoint.
     pub fn add_num_subscriber_subscriber(&mut self, subscriber: LocalSubscriber<u128>) {
         self.num_subscriber = Some(subscriber);
     }
@@ -90,8 +75,8 @@ impl<'a> Node for PublisherNode<'a> {
         self.num_publisher.send(self.test_number);
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn shutdown(&mut self) {
@@ -102,7 +87,7 @@ impl<'a> Node for PublisherNode<'a> {
         format!(
             "Publisher Node:\n{}\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.test_number,
         )
     }
@@ -121,8 +106,8 @@ impl<'a> Node for SubscriberNode<'a> {
         self.num_subscriber.as_mut().unwrap().update_data();
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn shutdown(&mut self) {}
@@ -131,7 +116,7 @@ impl<'a> Node for SubscriberNode<'a> {
         format!(
             "Subscriber Node:\n{}\n{}\n{}",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.num_subscriber.as_ref().unwrap().data.unwrap(),
         )
     }
@@ -147,11 +132,11 @@ mod tests {
         let subscriber_node = SubscriberNode::new("test subscriber", 10);
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.update_rate, 12);
+        assert_eq!(publisher_node.update_delay, 12);
         assert_eq!(publisher_node.test_number, 0);
         
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.update_rate, 10);
+        assert_eq!(subscriber_node.update_delay, 10);
         assert!(subscriber_node.num_subscriber.is_none());
     }
 
@@ -166,11 +151,11 @@ mod tests {
         subscriber_node.start();
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.get_update_rate(), 13);
+        assert_eq!(publisher_node.get_update_delay(), 13);
         assert_eq!(publisher_node.test_number, 1);
 
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.get_update_rate(), 10);
+        assert_eq!(subscriber_node.get_update_delay(), 10);
         assert_eq!(subscriber_node.num_subscriber.unwrap().data.unwrap(), 1);
     }
 
@@ -188,11 +173,11 @@ mod tests {
         subscriber_node.update();
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.get_update_rate(), 12);
+        assert_eq!(publisher_node.get_update_delay(), 12);
         assert_eq!(publisher_node.test_number, 2);
 
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.get_update_rate(), 10);
+        assert_eq!(subscriber_node.get_update_delay(), 10);
         assert_eq!(subscriber_node.num_subscriber.unwrap().data.unwrap(), 2);
     }
 }

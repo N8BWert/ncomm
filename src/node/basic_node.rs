@@ -1,28 +1,23 @@
+//!
+//! Basic Node Example.
+//! 
+
 use crate::node::Node;
 
 /// Test Basic Node
 /// 
 /// This node was meant to test the most basic possible node that contains its own data and
 /// does its own processing.
-/// 
-/// Params:
-///     name: the name of the node
-///     update_rate: the rate the node should be updated at (in ms)
-///     test_number: the internal number that changes giving BasicNode state.
 pub struct BasicNode<'a> {
     name: &'a str,
-    update_rate: u128,
+    update_delay: u128,
     test_number: u128,
 }
 
 impl<'a> BasicNode<'a> {
-    /// Creates a new Basic Node with given name and update rate
-    /// 
-    /// Args:
-    ///     name: the name for the new Basic Node
-    ///     update_rate: the rate this node should be updated at (in ms)
-    pub const fn new(name: &'a str, update_rate: u128) -> Self {
-        Self{ name, update_rate, test_number: 0}
+    /// Creates a new Basic Node with given name and update delay
+    pub const fn new(name: &'a str, update_delay: u128) -> Self {
+        Self{ name, update_delay, test_number: 0}
     }
 }
 
@@ -39,8 +34,8 @@ impl<'a> Node for BasicNode<'a> {
         self.test_number += 1;
     }
 
-    fn get_update_rate(&self) -> u128 {
-        self.update_rate
+    fn get_update_delay(&self) -> u128 {
+        self.update_delay
     }
 
     fn shutdown(&mut self) {
@@ -51,7 +46,7 @@ impl<'a> Node for BasicNode<'a> {
         format!(
             "Basic Node:\n{}\n{}\n{}\n",
             self.name(),
-            self.update_rate,
+            self.update_delay,
             self.test_number,
         )
     }
@@ -65,7 +60,7 @@ mod tests {
     fn test_create_basic_node() {
         let basic_node = BasicNode::new("test node", 12);
         assert_eq!(basic_node.name, String::from("test node"));
-        assert_eq!(basic_node.update_rate, 12);
+        assert_eq!(basic_node.update_delay, 12);
         assert_eq!(basic_node.test_number, 0);
     }
 
@@ -86,9 +81,9 @@ mod tests {
     }
 
     #[test]
-    fn test_get_update_rate() {
+    fn test_get_update_delay() {
         let basic_node = BasicNode::new("test node", 12);
-        assert_eq!(basic_node.get_update_rate(), 12);
+        assert_eq!(basic_node.get_update_delay(), 12);
     }
 
     #[test]

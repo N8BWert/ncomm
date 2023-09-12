@@ -1,4 +1,11 @@
-use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
+//!
+//! A local mpsc channel-based Update Client + Update Server
+//! 
+//! The Local Update Client + Server sends data along a mpsc channel from the client to
+//! the server and then updates and responses from the server back to the client.
+//! 
+
+use std::sync::{mpsc, mpsc::{Sender, Receiver}};
 use std::collections::HashMap;
 
 use crate::client_server::local::SendError;
@@ -6,11 +13,6 @@ use crate::client_server::local::SendError;
 use crate::update_client_server::{UpdateClient, UpdateServer};
 
 /// Local Implementation of an Update Client
-/// 
-/// Params:
-///     req_tx: the sender from this client to the server
-///     updt_rx: the receiver from the server to this client for updates
-///     res_rx: the receiver from the server to this client for responses
 pub struct LocalUpdateClient<Req: PartialEq + Send + Clone,
                              Updt: PartialEq + Send + Clone,
                              Res: PartialEq + Send + Clone> {
@@ -20,11 +22,6 @@ pub struct LocalUpdateClient<Req: PartialEq + Send + Clone,
 }
 
 /// Local Implementation of an group of server to client channels
-/// 
-/// Params:
-///     req_rx: the receiver from the client to this server for requests
-///     updt_tx: the sender from this server to the client (for updates)
-///     res_tx: the sender from this server to the client (for responses)
 struct LocalUpdateServerChannels<Req: PartialEq + Send + Clone,
                                  Updt: PartialEq + Send + Clone,
                                  Res: PartialEq + Send + Clone> {
@@ -34,10 +31,6 @@ struct LocalUpdateServerChannels<Req: PartialEq + Send + Clone,
 }
 
 /// Local Implementation of an Update Server
-/// 
-/// Params:
-///     client_mappings: a mapping of clients (by string name) to their server channel
-///         ends
 pub struct LocalUpdateServer<Req: PartialEq + Send + Clone,
                              Updt: PartialEq + Send + Clone,
                              Res: PartialEq + Send + Clone> {
@@ -48,14 +41,6 @@ impl<Req: PartialEq + Send + Clone,
      Updt: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalUpdateClient<Req, Updt, Res> {
     /// Creates a new LocalUpdateClient with given req_tx, updt_rx, and res_rx
-    /// 
-    /// Args:
-    ///     req_tx: the request transmitter
-    ///     updt_rx: the update receiver
-    ///     res_rx: the response receiver
-    /// 
-    /// Returns:
-    ///     Self: A new LocalUpdateClient
     pub const fn new(req_tx: Sender<Req>, updt_rx: Receiver<Updt>, res_rx: Receiver<Res>) -> Self {
         Self { req_tx, updt_rx, res_rx }
     }
@@ -81,6 +66,14 @@ impl<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
      Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> Default for LocalUpdateServer<Req, Updt, Res> {
+        fn default() -> Self {
+            Self::new()
+        }
+     }
+
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> UpdateClient<Req, Updt, Res, mpsc::SendError<Req>> for LocalUpdateClient<Req, Updt, Res> {
     fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
         self.req_tx.send(request)
@@ -92,7 +85,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(update) = iter.last() {
             return Some(update);
         }
-        return None;
+        None
     }
 
     fn receive_response(&self) -> Option<Res> {
@@ -101,7 +94,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(response) = iter.last() {
             return Some(response);
         }
-        return None;
+        None
     }
 }
 
@@ -118,7 +111,7 @@ impl<Req: PartialEq + Send + Clone,
         let channels = LocalUpdateServerChannels::new(req_rx, updt_tx, res_tx);
         self.client_mappings.insert(client_name, channels);
 
-        return LocalUpdateClient::new(req_tx, updt_rx, res_rx);
+        LocalUpdateClient::new(req_tx, updt_rx, res_rx)
     }
 
     fn get_clients(&self) -> Vec<String> {
@@ -128,7 +121,7 @@ impl<Req: PartialEq + Send + Clone,
             clients.push(client.clone());
         }
 
-        return clients;
+        clients
     }
 
     fn receive_requests(&self) -> Vec<(String, Req)> {
@@ -141,18 +134,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return requests;
+        requests
     }
 
     fn send_update(&self, client: String, update: Updt) -> SendError<Updt> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.updt_tx.send(update) {
-                return SendError::<Updt>::SendIncomplete((client, send_err));
+                SendError::<Updt>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Updt>::NoError(client);
+                SendError::<Updt>::NoError(client)
             }
         } else {
-            return SendError::<Updt>::ClientNotFound(client);
+            SendError::<Updt>::ClientNotFound(client)
         }
     }
 
@@ -171,18 +164,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 
     fn send_response(&self, client: String, response: Res) -> SendError<Res> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.res_tx.send(response) {
-                return SendError::<Res>::SendIncomplete((client, send_err));
+                SendError::<Res>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Res>::NoError(client);
+                SendError::<Res>::NoError(client)
             }
         } else {
-            return SendError::<Res>::ClientNotFound(client);
+            SendError::<Res>::ClientNotFound(client)
         }
     }
 
@@ -201,7 +194,7 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 }
 
