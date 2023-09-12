@@ -1,8 +1,16 @@
-use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
+//!
+//! A local mpsc channel-based Client + Server.
+//! 
+//! The Local Client + Server sends data along a mpsc channel from the client
+//! to the server and back to the client.
+//! 
+
+use std::sync::{mpsc, mpsc::{Sender, Receiver}};
 use std::collections::HashMap;
 
 use crate::client_server::{Client, Server};
 
+/// Error from sending data along the local client + server.
 #[derive(PartialEq, Debug)]
 pub enum SendError<T> {
     NoError(String),
@@ -10,18 +18,22 @@ pub enum SendError<T> {
     SendIncomplete((String, mpsc::SendError<T>)),
 }
 
+/// A Local Client that sends data to a Local Server.
 pub struct LocalClient<Req: PartialEq + Send + Clone,
                        Res: PartialEq + Send + Clone> {
     req_tx: Sender<Req>,
     res_rx: Receiver<Res>
 }
 
+/// A Singular Channel from a Local Client to the Local Server.
 struct LocalServerChannels<Req: PartialEq + Send + Clone,
                            Res: PartialEq + Send + Clone> {
     req_rx: Receiver<Req>,
     res_tx: Sender<Res>,
 }
 
+/// A Local Server receives data from a client (of many) processes the data
+/// and sends a response back to the client.
 pub struct LocalServer<Req: PartialEq + Send + Clone,
                        Res: PartialEq + Send + Clone> {
     client_mappings: HashMap<String, LocalServerChannels<Req, Res>>,
@@ -29,6 +41,7 @@ pub struct LocalServer<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalClient<Req, Res> {
+    /// Creates a new Local Client with Given sender and receiver.
     pub const fn new(req_tx: Sender<Req>, res_rx: Receiver<Res>) -> Self {
         Self {req_tx, res_rx }
     }
@@ -36,13 +49,15 @@ impl<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
     Res: PartialEq + Send + Clone> LocalServerChannels<Req, Res> {
-    pub const fn new(req_rx: Receiver<Req>, res_tx: Sender<Res>) -> Self {
+    
+    const fn new(req_rx: Receiver<Req>, res_tx: Sender<Res>) -> Self {
         Self { req_rx, res_tx }
     }
 }
 
 impl<Req: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalServer<Req, Res> {
+    /// Creates a new Local Server
     pub fn new() -> Self {
         Self { client_mappings: HashMap::new() }
     }
