@@ -1,3 +1,10 @@
+//!
+//! A local mpsc channel-based Publisher + Subscriber
+//! 
+//! The Local Publisher sends data along a mpsc channel (cloned which may change)
+//! to a set of subscribers.
+//! 
+
 use std::sync::{mpsc, mpsc::{Sender, Receiver}};
 
 use crate::publisher_subscriber::{Publish, Subscribe, Receive};
@@ -6,9 +13,6 @@ use crate::publisher_subscriber::{Publish, Subscribe, Receive};
 /// 
 /// Publishers can create subscriptions and will send the same data
 /// (cloned) to each of its subscriptions
-/// 
-/// Params:
-///     txs: a list of the Sender<T> ends for the publisher subscriber channel
 pub struct LocalPublisher<Data: Send + Clone> {
     txs: Vec<Sender<Data>>,
 }
@@ -18,10 +22,6 @@ pub struct LocalPublisher<Data: Send + Clone> {
 /// Subscribers will receive data from a subscriber and store only the most recent
 /// data internally allowing for Nodes that contain subscribers to be able to access
 /// the most recent data.
-/// 
-/// Params:
-///     rx: the Receiver<T> end for the publisher's channel
-///     data: the most recent data from the publisher (None on init)
 pub struct LocalSubscriber<Data: Send + Clone> {
     rx: Receiver<Data>,
     pub data: Option<Data>,
@@ -29,9 +29,6 @@ pub struct LocalSubscriber<Data: Send + Clone> {
 
 impl<Data: Send + Clone> LocalPublisher<Data> {
     /// Creates a new Publisher with empty vector of Sender<T> ends
-    /// 
-    /// Returns:
-    ///     Publisher<T>: new Publisher
     pub const fn new() -> Self {
         Self{ txs: Vec::new() }
     }

@@ -45,7 +45,7 @@ impl<'a> UdpSubscriberNode<'a> {
         Self {
             name,
             update_delay,
-            num_subscriber: UdpSubscriber::new(bind_address, from_address),
+            num_subscriber: UdpSubscriber::new(bind_address, Some(from_address)),
         }
     }
 }

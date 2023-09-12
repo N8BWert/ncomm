@@ -1,3 +1,10 @@
+//!
+//! Publisher - Subscriber Communication
+//! 
+//! The Publish, Subscribe, and Receive Traits should be implemented for any and all
+//! future publishers and subscribers that are usable with NComm
+//! 
+
 pub mod local;
 pub mod udp;
 
