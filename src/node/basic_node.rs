@@ -60,7 +60,7 @@ mod tests {
     fn test_create_basic_node() {
         let basic_node = BasicNode::new("test node", 12);
         assert_eq!(basic_node.name, String::from("test node"));
-        assert_eq!(basic_node.update_rate, 12);
+        assert_eq!(basic_node.update_delay, 12);
         assert_eq!(basic_node.test_number, 0);
     }
 
@@ -81,9 +81,9 @@ mod tests {
     }
 
     #[test]
-    fn test_get_update_rate() {
+    fn test_get_update_delay() {
         let basic_node = BasicNode::new("test node", 12);
-        assert_eq!(basic_node.get_update_rate(), 12);
+        assert_eq!(basic_node.get_update_delay(), 12);
     }
 
     #[test]

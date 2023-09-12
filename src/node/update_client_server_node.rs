@@ -114,7 +114,7 @@ impl<'a> Node for UpdateServerNode<'a> {
         if (self.received_requests as usize) < self.test_server.get_clients().len() {
             let requests = self.test_server.receive_requests();
 
-            if requests.is_empty() {
+            if !requests.is_empty() {
                 self.test_number = requests[0].1.data;
                 self.received_requests += requests.len() as u128;
             }
@@ -219,7 +219,7 @@ mod tests {
         let client_node_two = UpdateClientNode::new("test update client node two", 20, server_node.create_update_client(String::from("test update client node two")));
 
         assert_eq!(server_node.name(), String::from("test update server node"));
-        assert_eq!(server_node.get_update_rate(), 20);
+        assert_eq!(server_node.get_update_delay(), 20);
         assert_eq!(server_node.test_number, 0);
         assert_eq!(server_node.test_server.get_clients().len(), 2);
         assert!(server_node.test_server.get_clients()[0] == String::from("test update client node one") || server_node.test_server.get_clients()[0] == String::from("test update client node two"));
@@ -228,12 +228,12 @@ mod tests {
         assert_eq!(server_node.num_sent_updates, 0);
 
         assert_eq!(client_node_one.name(), String::from("test update client node one"));
-        assert_eq!(client_node_one.get_update_rate(), 20);
+        assert_eq!(client_node_one.get_update_delay(), 20);
         assert_eq!(client_node_one.test_number, 0);
         assert_eq!(client_node_one.sent_first_request, false);
 
         assert_eq!(client_node_two.name(), String::from("test update client node two"));
-        assert_eq!(client_node_two.get_update_rate(), 20);
+        assert_eq!(client_node_two.get_update_delay(), 20);
         assert_eq!(client_node_two.test_number, 0);
         assert_eq!(client_node_two.sent_first_request, false);
     }
@@ -249,7 +249,7 @@ mod tests {
         client_node_two.start();
 
         assert_eq!(server_node.name(), String::from("test update server node"));
-        assert_eq!(server_node.get_update_rate(), 20);
+        assert_eq!(server_node.get_update_delay(), 20);
         assert_eq!(server_node.test_number, 1);
         assert_eq!(server_node.test_server.get_clients().len(), 2);
         assert!(server_node.test_server.get_clients()[0] == String::from("test update client node one") || server_node.test_server.get_clients()[0] == String::from("test update client node two"));
@@ -258,12 +258,12 @@ mod tests {
         assert_eq!(server_node.num_sent_updates, 0);
 
         assert_eq!(client_node_one.name(), String::from("test update client node one"));
-        assert_eq!(client_node_one.get_update_rate(), 20);
+        assert_eq!(client_node_one.get_update_delay(), 20);
         assert_eq!(client_node_one.test_number, 1);
         assert_eq!(client_node_one.sent_first_request, false);
 
         assert_eq!(client_node_two.name(), String::from("test update client node two"));
-        assert_eq!(client_node_two.get_update_rate(), 20);
+        assert_eq!(client_node_two.get_update_delay(), 20);
         assert_eq!(client_node_two.test_number, 1);
         assert_eq!(client_node_two.sent_first_request, false);
     }

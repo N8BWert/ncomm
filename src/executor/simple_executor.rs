@@ -174,17 +174,17 @@ mod tests {
         // Check the first node is node 3
         let node_three = simple_executor.heap.pop().unwrap().node;
         assert_eq!(node_three.name(), String::from("test node 3"));
-        assert_eq!(node_three.get_update_rate(), 3);
+        assert_eq!(node_three.get_update_delay(), 3);
 
         // Check the second node is node 2
         let node_two = simple_executor.heap.pop().unwrap().node;
         assert_eq!(node_two.name(), String::from("test node 2"));
-        assert_eq!(node_two.get_update_rate(), 13);
+        assert_eq!(node_two.get_update_delay(), 13);
 
         // Check the third node is node 3
         let node_one = simple_executor.heap.pop().unwrap().node;
         assert_eq!(node_one.name(), String::from("test node 1"));
-        assert_eq!(node_one.get_update_rate(), 12);
+        assert_eq!(node_one.get_update_delay(), 12);
     }
 
     #[test]
@@ -231,27 +231,27 @@ mod tests {
             (Ok(mut executor_one), Ok(mut executor_two)) => {
                 let node_one = executor_one.heap.pop().unwrap().node;
                 assert_eq!(node_one.name(), String::from("test node 1"));
-                assert_eq!(node_one.get_update_rate(), 9);
+                assert_eq!(node_one.get_update_delay(), 9);
 
                 let node_three = executor_one.heap.pop().unwrap().node;
                 assert_eq!(node_three.name(), String::from("test node 3"));
-                assert_eq!(node_three.get_update_rate(), 12);
+                assert_eq!(node_three.get_update_delay(), 12);
 
                 let node_two = executor_one.heap.pop().unwrap().node;
                 assert_eq!(node_two.name(), String::from("test node 2"));
-                assert_eq!(node_two.get_update_rate(), 13);
+                assert_eq!(node_two.get_update_delay(), 13);
 
                 let node_five = executor_two.heap.pop().unwrap().node;
                 assert_eq!(node_five.name(), String::from("test node 5"));
-                assert_eq!(node_five.get_update_rate(), 5);
+                assert_eq!(node_five.get_update_delay(), 5);
 
                 let node_four = executor_two.heap.pop().unwrap().node;
                 assert_eq!(node_four.name(), String::from("test node 4"));
-                assert_eq!(node_four.get_update_rate(), 15);
+                assert_eq!(node_four.get_update_delay(), 15);
                 
                 let node_six = executor_two.heap.pop().unwrap().node;
                 assert_eq!(node_six.name(), String::from("test node 6"));
-                assert_eq!(node_six.get_update_rate(), 20);
+                assert_eq!(node_six.get_update_delay(), 20);
             },
             _ => assert_eq!(false, true),
         };
@@ -281,25 +281,25 @@ mod tests {
         let wrapper_two = simple_executor.heap.pop().unwrap();
         let node_two = wrapper_two.node;
         assert_eq!(node_two.name(), String::from("test node 2"));
-        assert_eq!(node_two.get_update_rate(), 4);
+        assert_eq!(node_two.get_update_delay(), 4);
         assert_eq!(wrapper_two.priority, 2000);
 
         let wrapper_four = simple_executor.heap.pop().unwrap();
         let node_four = wrapper_four.node;
         assert_eq!(node_four.name(), String::from("test node 4"));
-        assert_eq!(node_four.get_update_rate(), 2);
+        assert_eq!(node_four.get_update_delay(), 2);
         assert_eq!(wrapper_four.priority, 2000);
 
         let wrapper_three = simple_executor.heap.pop().unwrap();
         let node_three = wrapper_three.node;
         assert_eq!(node_three.name(), String::from("test node 3"));
-        assert_eq!(node_three.get_update_rate(), 5);
+        assert_eq!(node_three.get_update_delay(), 5);
         assert_eq!(wrapper_three.priority, 2005);
 
         let wrapper_one = simple_executor.heap.pop().unwrap();
         let node_one = wrapper_one.node;
         assert_eq!(node_one.name(), String::from("test node 1"));
-        assert_eq!(node_one.get_update_rate(), 15);
+        assert_eq!(node_one.get_update_delay(), 15);
         assert_eq!(wrapper_one.priority, 2010);
 
         assert!(2000 <= end_time - start_time && end_time - start_time <= 2002);

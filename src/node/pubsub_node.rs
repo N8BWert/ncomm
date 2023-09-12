@@ -132,11 +132,11 @@ mod tests {
         let subscriber_node = SubscriberNode::new("test subscriber", 10);
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.update_rate, 12);
+        assert_eq!(publisher_node.update_delay, 12);
         assert_eq!(publisher_node.test_number, 0);
         
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.update_rate, 10);
+        assert_eq!(subscriber_node.update_delay, 10);
         assert!(subscriber_node.num_subscriber.is_none());
     }
 
@@ -151,11 +151,11 @@ mod tests {
         subscriber_node.start();
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.get_update_rate(), 13);
+        assert_eq!(publisher_node.get_update_delay(), 13);
         assert_eq!(publisher_node.test_number, 1);
 
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.get_update_rate(), 10);
+        assert_eq!(subscriber_node.get_update_delay(), 10);
         assert_eq!(subscriber_node.num_subscriber.unwrap().data.unwrap(), 1);
     }
 
@@ -173,11 +173,11 @@ mod tests {
         subscriber_node.update();
 
         assert_eq!(publisher_node.name(), String::from("test publisher"));
-        assert_eq!(publisher_node.get_update_rate(), 12);
+        assert_eq!(publisher_node.get_update_delay(), 12);
         assert_eq!(publisher_node.test_number, 2);
 
         assert_eq!(subscriber_node.name(), String::from("test subscriber"));
-        assert_eq!(subscriber_node.get_update_rate(), 10);
+        assert_eq!(subscriber_node.get_update_delay(), 10);
         assert_eq!(subscriber_node.num_subscriber.unwrap().data.unwrap(), 2);
     }
 }

@@ -166,14 +166,14 @@ mod tests {
         let client_node_two = ClientNode::new("test client node 2", 22, server_node.create_client(String::from("test client node 2")));
 
         assert_eq!(server_node.name(), String::from("test server node"));
-        assert_eq!(server_node.get_update_rate(), 10);
+        assert_eq!(server_node.get_update_delay(), 10);
 
         assert_eq!(client_node_one.name(), String::from("test client node 1"));
-        assert_eq!(client_node_one.get_update_rate(), 10);
+        assert_eq!(client_node_one.get_update_delay(), 10);
         assert_eq!(client_node_one.test_number, 0);
 
         assert_eq!(client_node_two.name(), String::from("test client node 2"));
-        assert_eq!(client_node_two.get_update_rate(), 22);
+        assert_eq!(client_node_two.get_update_delay(), 22);
         assert_eq!(client_node_two.test_number, 0);
     }
 

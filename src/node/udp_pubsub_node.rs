@@ -125,11 +125,11 @@ mod tests {
         );
 
         assert_eq!(publisher_node.name(), String::from("publisher node"));
-        assert_eq!(publisher_node.get_update_rate(), 20);
+        assert_eq!(publisher_node.get_update_delay(), 20);
         assert_eq!(publisher_node.test_number, 0);
 
         assert_eq!(subscriber_node.name(), String::from("subscriber node"));
-        assert_eq!(subscriber_node.get_update_rate(), 20);
+        assert_eq!(subscriber_node.get_update_delay(), 20);
         assert!(subscriber_node.num_subscriber.data.is_none());
     }
 
