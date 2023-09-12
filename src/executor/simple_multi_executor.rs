@@ -17,7 +17,7 @@ use std::sync::{mpsc, mpsc::{Receiver, Sender}};
 
 /// Multi-Threaded Executor that maps a large number of single executors to
 /// strings (thread names) and manages the multi-threaded execution and interrupts for
-/// each of these executors
+/// each of these executors.
 pub struct SimpleMultiExecutor<'a> {
     threads: HashMap<String, SimpleExecutor<'a>>,
     interrupt_txs: Vec<Sender<bool>>,
@@ -81,6 +81,12 @@ impl<'a> SimpleMultiExecutor<'a> {
     }
 }
 
+impl<'a> Default for SimpleMultiExecutor<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> MultiThreadedExecutor<'a> for SimpleMultiExecutor<'a> {
     fn add_node_to(&mut self, new_node: &'a mut dyn Node, thread: &str) {
         let thread = String::from(thread);
@@ -118,7 +124,7 @@ impl<'a> Executor<'a> for SimpleMultiExecutor<'a> {
                 handles.push(scope.spawn(|| {
                     executor.start();
                     executor.update_loop();
-                    return executor;
+                    executor
                 }));
             }
 
@@ -138,7 +144,7 @@ impl<'a> Executor<'a> for SimpleMultiExecutor<'a> {
 
             self.log("Wind Down Complete");
 
-            return (thread_names, executors);
+            (thread_names, executors)
         });
 
         let mut map = HashMap::new();
@@ -168,7 +174,7 @@ impl<'a> Executor<'a> for SimpleMultiExecutor<'a> {
                 handles.push(scope.spawn(|| {
                     executor.start();
                     executor.update_loop();
-                    return executor;
+                    executor
                 }));
             }
 
@@ -190,7 +196,7 @@ impl<'a> Executor<'a> for SimpleMultiExecutor<'a> {
 
             self.log("Wind Down Complete");
 
-            return (thread_names, executors);
+            (thread_names, executors)
         });
 
         let mut map = HashMap::new();
@@ -208,7 +214,7 @@ impl<'a> Executor<'a> for SimpleMultiExecutor<'a> {
                 self.interrupted = interrupt;
             }
         }
-        return self.interrupted;
+        self.interrupted
     }
 
     fn log(&self, message: &str) {

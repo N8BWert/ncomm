@@ -134,7 +134,7 @@ impl<'a> Executor<'a> for SimpleExecutor<'a> {
                 self.interrupted = interrupt;
             }
         }
-        return self.interrupted;
+        self.interrupted
     }
 
     fn log(&self, message: &str) {

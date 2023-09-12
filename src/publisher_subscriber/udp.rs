@@ -37,7 +37,7 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> UdpPublisher<'a, Data, DATA
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
         socket.set_nonblocking(true).unwrap();
         
-        Self { tx: socket, addresses: addresses, phantom: PhantomData }
+        Self { tx: socket, addresses, phantom: PhantomData }
     }
 }
 

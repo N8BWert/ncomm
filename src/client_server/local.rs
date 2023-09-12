@@ -64,6 +64,13 @@ impl<Req: PartialEq + Send + Clone,
 }
 
 impl<Req: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> Default for LocalServer<Req, Res> {
+        fn default() -> Self {
+            Self::new()
+        }
+     }
+
+impl<Req: PartialEq + Send + Clone,
     Res: PartialEq + Send + Clone> Client<Req, Res, mpsc::SendError<Req>> for LocalClient<Req, Res> {
     fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
         self.req_tx.send(request)
@@ -75,7 +82,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(response) = iter.last() {
             return Some(response);
         }
-        return None;
+        None
     }
 }
 
@@ -90,7 +97,7 @@ impl<Req: PartialEq + Send + Clone,
         let channels = LocalServerChannels::new(req_rx, res_tx);
         self.client_mappings.insert(client_name, channels);
 
-        return LocalClient::new(req_tx, res_rx);
+        LocalClient::new(req_tx, res_rx)
     }
 
     fn get_clients(&self) -> Vec<String> {
@@ -100,7 +107,7 @@ impl<Req: PartialEq + Send + Clone,
             clients.push(client.clone());
         }
 
-        return clients;
+        clients
     }
 
     fn receive_requests(&self) -> Vec<(String, Req)> {
@@ -113,18 +120,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return requests;
+        requests
     }
 
     fn send_response(&self, client: String, response: Res) -> SendError<Res> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.res_tx.send(response) {
-                return SendError::<Res>::SendIncomplete((client, send_err));
+                SendError::<Res>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Res>::NoError(client);
+                SendError::<Res>::NoError(client)
             }
         } else {
-            return SendError::<Res>::ClientNotFound(client);
+            SendError::<Res>::ClientNotFound(client)
         }
     }
 
@@ -143,7 +150,7 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 }
 

@@ -66,6 +66,14 @@ impl<Req: PartialEq + Send + Clone,
 
 impl<Req: PartialEq + Send + Clone,
      Updt: PartialEq + Send + Clone,
+     Res: PartialEq + Send + Clone> Default for LocalUpdateServer<Req, Updt, Res> {
+        fn default() -> Self {
+            Self::new()
+        }
+     }
+
+impl<Req: PartialEq + Send + Clone,
+     Updt: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> UpdateClient<Req, Updt, Res, mpsc::SendError<Req>> for LocalUpdateClient<Req, Updt, Res> {
     fn send_request(&self, request: Req) -> Result<(), mpsc::SendError<Req>> {
         self.req_tx.send(request)
@@ -77,7 +85,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(update) = iter.last() {
             return Some(update);
         }
-        return None;
+        None
     }
 
     fn receive_response(&self) -> Option<Res> {
@@ -86,7 +94,7 @@ impl<Req: PartialEq + Send + Clone,
         if let Some(response) = iter.last() {
             return Some(response);
         }
-        return None;
+        None
     }
 }
 
@@ -103,7 +111,7 @@ impl<Req: PartialEq + Send + Clone,
         let channels = LocalUpdateServerChannels::new(req_rx, updt_tx, res_tx);
         self.client_mappings.insert(client_name, channels);
 
-        return LocalUpdateClient::new(req_tx, updt_rx, res_rx);
+        LocalUpdateClient::new(req_tx, updt_rx, res_rx)
     }
 
     fn get_clients(&self) -> Vec<String> {
@@ -113,7 +121,7 @@ impl<Req: PartialEq + Send + Clone,
             clients.push(client.clone());
         }
 
-        return clients;
+        clients
     }
 
     fn receive_requests(&self) -> Vec<(String, Req)> {
@@ -126,18 +134,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return requests;
+        requests
     }
 
     fn send_update(&self, client: String, update: Updt) -> SendError<Updt> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.updt_tx.send(update) {
-                return SendError::<Updt>::SendIncomplete((client, send_err));
+                SendError::<Updt>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Updt>::NoError(client);
+                SendError::<Updt>::NoError(client)
             }
         } else {
-            return SendError::<Updt>::ClientNotFound(client);
+            SendError::<Updt>::ClientNotFound(client)
         }
     }
 
@@ -156,18 +164,18 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 
     fn send_response(&self, client: String, response: Res) -> SendError<Res> {
         if let Some(channels) = self.client_mappings.get(&client) {
             if let Err(send_err) = channels.res_tx.send(response) {
-                return SendError::<Res>::SendIncomplete((client, send_err));
+                SendError::<Res>::SendIncomplete((client, send_err))
             } else {
-                return SendError::<Res>::NoError(client);
+                SendError::<Res>::NoError(client)
             }
         } else {
-            return SendError::<Res>::ClientNotFound(client);
+            SendError::<Res>::ClientNotFound(client)
         }
     }
 
@@ -186,7 +194,7 @@ impl<Req: PartialEq + Send + Clone,
             }
         }
 
-        return errors;
+        errors
     }
 }
 

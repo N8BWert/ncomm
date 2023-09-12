@@ -114,7 +114,7 @@ impl<'a> Node for UpdateServerNode<'a> {
         if (self.received_requests as usize) < self.test_server.get_clients().len() {
             let requests = self.test_server.receive_requests();
 
-            if requests.len() > 0 {
+            if requests.is_empty() {
                 self.test_number = requests[0].1.data;
                 self.received_requests += requests.len() as u128;
             }

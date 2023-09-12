@@ -49,7 +49,7 @@ impl<Data: Send + Clone> Subscribe<Data> for LocalPublisher<Data> {
     fn create_subscriber(&mut self) -> LocalSubscriber<Data> {
         let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
         self.txs.push(tx);
-        return LocalSubscriber::new_empty(rx);
+        LocalSubscriber::new_empty(rx)
     }
 }
 
@@ -66,10 +66,10 @@ impl <Data: Send + Clone> LocalSubscriber<Data> {
 impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
     fn update_data(&mut self) {
         let iter = self.rx.try_iter();
-        match iter.last() {
-            Some(data) => self.data = Some(data),
-            _ => return,
-        };
+
+        if let Some(data) = iter.last() {
+            self.data = Some(data);
+        }
     }
 }
 
