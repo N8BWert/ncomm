@@ -1,4 +1,11 @@
-use std::{sync::{mpsc, mpsc::{Sender, Receiver}}};
+//!
+//! A local mpsc channel-based Update Client + Update Server
+//! 
+//! The Local Update Client + Server sends data along a mpsc channel from the client to
+//! the server and then updates and responses from the server back to the client.
+//! 
+
+use std::sync::{mpsc, mpsc::{Sender, Receiver}};
 use std::collections::HashMap;
 
 use crate::client_server::local::SendError;
@@ -6,11 +13,6 @@ use crate::client_server::local::SendError;
 use crate::update_client_server::{UpdateClient, UpdateServer};
 
 /// Local Implementation of an Update Client
-/// 
-/// Params:
-///     req_tx: the sender from this client to the server
-///     updt_rx: the receiver from the server to this client for updates
-///     res_rx: the receiver from the server to this client for responses
 pub struct LocalUpdateClient<Req: PartialEq + Send + Clone,
                              Updt: PartialEq + Send + Clone,
                              Res: PartialEq + Send + Clone> {
@@ -20,11 +22,6 @@ pub struct LocalUpdateClient<Req: PartialEq + Send + Clone,
 }
 
 /// Local Implementation of an group of server to client channels
-/// 
-/// Params:
-///     req_rx: the receiver from the client to this server for requests
-///     updt_tx: the sender from this server to the client (for updates)
-///     res_tx: the sender from this server to the client (for responses)
 struct LocalUpdateServerChannels<Req: PartialEq + Send + Clone,
                                  Updt: PartialEq + Send + Clone,
                                  Res: PartialEq + Send + Clone> {
@@ -34,10 +31,6 @@ struct LocalUpdateServerChannels<Req: PartialEq + Send + Clone,
 }
 
 /// Local Implementation of an Update Server
-/// 
-/// Params:
-///     client_mappings: a mapping of clients (by string name) to their server channel
-///         ends
 pub struct LocalUpdateServer<Req: PartialEq + Send + Clone,
                              Updt: PartialEq + Send + Clone,
                              Res: PartialEq + Send + Clone> {
@@ -48,14 +41,6 @@ impl<Req: PartialEq + Send + Clone,
      Updt: PartialEq + Send + Clone,
      Res: PartialEq + Send + Clone> LocalUpdateClient<Req, Updt, Res> {
     /// Creates a new LocalUpdateClient with given req_tx, updt_rx, and res_rx
-    /// 
-    /// Args:
-    ///     req_tx: the request transmitter
-    ///     updt_rx: the update receiver
-    ///     res_rx: the response receiver
-    /// 
-    /// Returns:
-    ///     Self: A new LocalUpdateClient
     pub const fn new(req_tx: Sender<Req>, updt_rx: Receiver<Updt>, res_rx: Receiver<Res>) -> Self {
         Self { req_tx, updt_rx, res_rx }
     }

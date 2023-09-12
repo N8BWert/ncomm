@@ -1,3 +1,13 @@
+//!
+//! Update Client - Update Server Communication
+//! 
+//! An Update Client + Server is a normal client that expects updates from the update server regarding
+//! the status of the request that was sent.
+//! 
+//! Over time, a large number of update clients and servers will be developed using various methods
+//! of data transfer and each should implement the UpdateClient and UpdateServer traits.
+//! 
+
 pub mod local;
 
 use std::error::Error;
