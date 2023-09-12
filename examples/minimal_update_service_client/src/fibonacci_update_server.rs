@@ -39,7 +39,7 @@ impl<'a> FibonacciUpdateServer<'a> {
 impl<'a> Node for FibonacciUpdateServer<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { 10u128 }
+    fn get_update_delay(&self) -> u128 { 10u128 }
 
     fn start(&mut self) {}
 

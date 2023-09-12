@@ -27,7 +27,7 @@ impl<'a> MinimalPublisher<'a> {
 impl<'a> Node for MinimalPublisher<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { 500u128 }
+    fn get_update_delay(&self) -> u128 { 500u128 }
 
     fn start(&mut self) {
         self.publish_message();

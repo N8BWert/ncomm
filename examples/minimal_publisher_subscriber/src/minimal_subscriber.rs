@@ -24,7 +24,7 @@ impl<'a> MinimalSubscriber<'a> {
 impl<'a> Node for MinimalSubscriber<'a> {
     fn name(&self) -> String { String::from(self.name) }
 
-    fn get_update_rate(&self) -> u128 { 500u128 }
+    fn get_update_delay(&self) -> u128 { 500u128 }
 
     fn start(&mut self) {
         self.print_subscriber_data();
