@@ -14,7 +14,7 @@ pub trait Publish<Data: Send + Clone> {
     /// 
     /// Args:
     ///     data: the data to be sent
-    fn send(&self, data: Data);
+    fn send(&mut self, data: Data);
 }
 
 /// Trait for all Publishers that allows subscribers to subscribe to their

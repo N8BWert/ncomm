@@ -35,7 +35,7 @@ impl<Data: Send + Clone> LocalPublisher<Data> {
 }
 
 impl<Data: Send + Clone> Publish<Data> for LocalPublisher<Data> {
-    fn send(&self, data: Data) {
+    fn send(&mut self, data: Data) {
         for tx in self.txs.iter() {
             tx.send(data.clone()).expect("Data Not Sendable");
         }
