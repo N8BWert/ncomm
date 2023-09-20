@@ -58,7 +58,7 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize>  UdpSubscriber<Data, DATA_S
 }
 
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for UdpPublisher<'a, Data, DATA_SIZE> {
-    fn send(&self, data: Data) {
+    fn send(&mut self, data: Data) {
         let buf: [u8; DATA_SIZE] = unsafe { std::mem::transmute_copy(&data) };
         for address in self.addresses.iter() {
             if let Err(err) = self.tx.send_to(&buf, address) {
@@ -113,7 +113,7 @@ mod tests {
     // Test that a udp publisher and subscriber can send data between each other.
     fn test_send_data_udp_publisher_and_subscriber() {
         let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:8001", Some("127.0.0.1:8000"));
-        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
 
         publisher.send(5u8);
 
@@ -129,7 +129,7 @@ mod tests {
     // Test that a udp publisher and subscriber can send multiple datas between each other.
     fn test_send_many_data_udp_publisher_and_subscriber() {
         let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:7001", Some("127.0.0.1:7000"));
-        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:7000", vec!["127.0.0.1:7001"]);
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:7000", vec!["127.0.0.1:7001"]);
 
         for i in 0..=8u8 {
             publisher.send(i);
