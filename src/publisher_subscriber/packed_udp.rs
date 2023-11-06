@@ -156,3 +156,125 @@ impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for Buff
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{thread, time};
+    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+
+    use packed_struct::prelude::*;
+
+    #[derive(PackedStruct, Clone, Copy, Debug, PartialEq)]
+    #[packed_struct(bit_numbering="msb0")]
+    pub struct TestData {
+        #[packed_field(bits="0..=2")]
+        tiny_int: Integer<u8, packed_bits::Bits::<3>>,
+        #[packed_field(bits="3..=4", ty = "enum")]
+        mode: SelfTestMode,
+        #[packed_field(bits="7")]
+        enabled: bool
+    }
+
+    #[derive(PrimitiveEnum_u8, Clone, Copy, Debug, PartialEq)]
+    pub enum SelfTestMode {
+        NormalMode = 0,
+        PositiveSignSelfTest = 1,
+        NegativeSignSelfTest = 2,
+        DebugMode = 3,
+    }
+
+    #[test]
+    // Test that a packed udp publisher and subscriber can be created
+    fn test_create_packed_udp_publisher_and_subscriber() {
+        let subscriber: PackedUdpSubscriber<TestData, 1> = PackedUdpSubscriber::new("127.0.0.1:10001", Some("127.0.0.1:10000"));
+        let publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10000", vec!["127.0.0.1:10001"]);
+
+        assert_eq!(subscriber.rx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 10001)));
+        assert_eq!(subscriber.data, None);
+
+        assert_eq!(publisher.tx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 10000)));
+        assert_eq!(String::from(publisher.addresses[0]), String::from("127.0.0.1:10001"));
+    }
+
+    #[test]
+    // Test that a packed udp publisher and subscriber can send data
+    fn test_send_data_packed_udp_publisher_and_subscriber() {
+        let mut subscriber: PackedUdpSubscriber<TestData, 1> = PackedUdpSubscriber::new("127.0.0.1:10003", Some("127.0.0.1:10002"));
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10002", vec!["127.0.0.1:10003"]);
+
+        publisher.send(TestData { tiny_int: 5.into(), mode: SelfTestMode::DebugMode, enabled: true });
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.unwrap(), TestData { tiny_int: 5.into(), mode: SelfTestMode::DebugMode, enabled: true });
+    }
+
+    #[test]
+    // Test that a packed udp publisher and subscriber can send multiple pieces of data
+    fn test_send_many_packed_data_udp_publisher_and_subscriber() {
+        let mut subscriber: PackedUdpSubscriber<TestData, 1> = PackedUdpSubscriber::new("127.0.0.1:10005", Some("127.0.0.1:10004"));
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10004", vec!["127.0.0.1:10005"]);
+
+        for i in 0..=5u8 {
+            publisher.send(TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.unwrap(), TestData { tiny_int: 5.into(), mode: SelfTestMode::DebugMode, enabled: true });
+    }
+
+    #[test]
+    // Test that a buffered udp subscriber can be created
+    fn test_create_buffered_udp_subscriber() {
+        let subscriber: BufferedPackedUdpSubscriber<TestData, 1> = BufferedPackedUdpSubscriber::new("127.0.0.1:10007", Some("127.0.0.1:10006"));
+        let publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10006", vec!["127.0.0.1:10007"]);
+
+        assert_eq!(subscriber.rx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 10007)));
+        assert_eq!(subscriber.data.len(), 0);
+
+        assert_eq!(publisher.tx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 10006)));
+        assert_eq!(String::from(publisher.addresses[0]), String::from("127.0.0.1:10007"));
+    }
+
+    #[test]
+    // Test that a udp publisher can send data to the buffered udp subscriber
+    fn test_send_packed_data_buffered_udp_subscriber() {
+        let mut subscriber: BufferedPackedUdpSubscriber<TestData, 1> = BufferedPackedUdpSubscriber::new("127.0.0.1:10009", Some("127.0.0.1:10008"));
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10008", vec!["127.0.0.1:10009"]);
+
+        publisher.send(TestData { tiny_int: 5.into(), mode: SelfTestMode::DebugMode, enabled: true });
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.len(), 1);
+        assert_eq!(subscriber.data[0], TestData { tiny_int: 5.into(), mode: SelfTestMode::DebugMode, enabled: true });
+    }
+
+    #[test]
+    // Test that a udp publisher can send many data to the buffered udp subscriber
+    fn test_send_many_packed_data_buffered_udp_subscriber() {
+        let mut subscriber: BufferedPackedUdpSubscriber<TestData, 1> = BufferedPackedUdpSubscriber::new("127.0.0.1:10011", Some("127.0.0.1:10010"));
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10010", vec!["127.0.0.1:10011"]);
+
+        for i in 0..=5u8 {
+            publisher.send(TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.len(), 6);
+        for i in 0..=5u8 {
+            assert_eq!(subscriber.data[i as usize], TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+    }
+}
