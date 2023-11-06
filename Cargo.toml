@@ -10,3 +10,11 @@ readme = "README.md"
 
 [dependencies]
 ctrlc = "3.4.0"
+
+[dependencies.packed_struct]
+version = "0.10.1"
+optional = true
+
+[features]
+default = []
+packed-struct = ["dep:packed_struct"]

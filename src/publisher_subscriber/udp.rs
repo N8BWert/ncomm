@@ -30,6 +30,15 @@ pub struct  UdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
     pub data: Option<Data>,
 }
 
+/// Buffered UDP Subscriber Type
+/// 
+/// The Buffered UDP Subscriber stores incoming data into a buffer that can be cleared on read 
+/// (or whenever the user wants to clear it).
+pub struct BufferedUdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
+    rx: UdpSocket,
+    pub data: Vec<Data>,
+}
+
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> UdpPublisher<'a, Data, DATA_SIZE> {
     /// Creates a new UdpPublisher with a UdpSocket bound to the bind address and a stored
     /// vector of references to the addresses of the subscribers.
@@ -57,6 +66,22 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize>  UdpSubscriber<Data, DATA_S
     }
 }
 
+impl<'a, Data: Send + Clone, const DATA_SIZE: usize> BufferedUdpSubscriber<Data, DATA_SIZE> {
+    /// Creates a new BufferedUdpSubscriber with a UdpSocket bound to the bind address listening to the
+    /// from address.
+    /// 
+    /// To only listen to communication on a specific address specify the from_address
+    pub fn new(bind_address: &'a str, from_address: Option<&'a str>) -> Self {
+        let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given bind address");
+        if let Some(from_address) = from_address {
+            socket.connect(from_address).expect("couldn't connect to the given address");
+        }
+        socket.set_nonblocking(true).unwrap();
+
+        Self { rx: socket, data: Vec::new() }
+    }
+}
+
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> Publish<Data> for UdpPublisher<'a, Data, DATA_SIZE> {
     fn send(&mut self, data: Data) {
         let buf: [u8; DATA_SIZE] = unsafe { std::mem::transmute_copy(&data) };
@@ -74,7 +99,7 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> SubscribeRemote<'a> for Udp
     }
 }
 
-impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for  UdpSubscriber<Data, DATA_SIZE> {
+impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for UdpSubscriber<Data, DATA_SIZE> {
     fn update_data(&mut self) {
         let mut data: Option<Data> = None;
         loop {
@@ -86,6 +111,18 @@ impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for  UdpSubscriber<Data
         }
         if let Some(data) = data {
             self.data = Some(data);
+        }
+    }
+}
+
+impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for BufferedUdpSubscriber<Data, DATA_SIZE> {
+    fn update_data(&mut self) {
+        loop {
+            let mut buf = [0u8; DATA_SIZE];
+            match self.rx.recv(&mut buf) {
+                Ok(_received) => unsafe { self.data.push(std::mem::transmute_copy(&buf)); },
+                Err(_) => break,
+            }
         }
     }
 }

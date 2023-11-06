@@ -8,6 +8,9 @@
 pub mod local;
 pub mod udp;
 
+#[cfg(feature = "packed-struct")]
+pub mod packed_udp;
+
 /// Trait for all Publishers that allows them to send data to subscribers
 pub trait Publish<Data: Send + Clone> {
     /// Sends data to a subscriber
