@@ -149,8 +149,8 @@ mod tests {
     #[test]
     // Test that a udp publisher and subscriber can send data between each other.
     fn test_send_data_udp_publisher_and_subscriber() {
-        let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:8001", Some("127.0.0.1:8000"));
-        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8000", vec!["127.0.0.1:8001"]);
+        let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:8003", Some("127.0.0.1:8002"));
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:8002", vec!["127.0.0.1:8003"]);
 
         publisher.send(5u8);
 
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    // Test that a udp publisher and subscriber can send multiple datas between each other.
+    // Test that a udp publisher and subscriber can send multiple pieces of data between each other.
     fn test_send_many_data_udp_publisher_and_subscriber() {
         let mut subscriber:  UdpSubscriber<u8, 1> =  UdpSubscriber::new("127.0.0.1:7001", Some("127.0.0.1:7000"));
         let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:7000", vec!["127.0.0.1:7001"]);
@@ -177,5 +177,55 @@ mod tests {
         subscriber.update_data();
 
         assert_eq!(subscriber.data.unwrap(), 8);
+    }
+
+    #[test]
+    // Test that a buffered udp subscriber can be created.
+    fn test_create_buffered_udp_subscriber() {
+        let subscriber:  BufferedUdpSubscriber<u8, 1> =  BufferedUdpSubscriber::new("127.0.0.1:9001", Some("127.0.0.1:9000"));
+        let publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:9000", vec!["127.0.0.1:9001"]);
+
+        assert_eq!(subscriber.rx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9001)));
+        assert_eq!(subscriber.data.len(), 0);
+
+        assert_eq!(publisher.tx.local_addr().unwrap(), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9000)));
+        assert_eq!(String::from(publisher.addresses[0]), String::from("127.0.0.1:9001"));
+    }
+
+    #[test]
+    // Test that a udp publisher can send data to the buffered udp subscriber.
+    fn test_send_data_udp_publisher_and_buffered_subscriber() {
+        let mut subscriber:  BufferedUdpSubscriber<u8, 1> =  BufferedUdpSubscriber::new("127.0.0.1:9003", Some("127.0.0.1:9002"));
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:9002", vec!["127.0.0.1:9003"]);
+
+        publisher.send(5u8);
+
+        // It takes a bit of time to actually send data
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.len(), 1);
+        assert_eq!(subscriber.data[0], 5);
+    }
+
+    #[test]
+    // Test that a udp publisher can send multiple pieces of data that are cached by the subscriber
+    fn test_send_multiple_data_udp_publisher_and_buffered_subscriber() {
+        let mut subscriber:  BufferedUdpSubscriber<u8, 1> =  BufferedUdpSubscriber::new("127.0.0.1:9005", Some("127.0.0.1:9004"));
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:9004", vec!["127.0.0.1:9005"]);
+
+        for i in 0..=8u8 {
+            publisher.send(i);
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        assert_eq!(subscriber.data.len(), 9);
+        for i in 0..=8u8 {
+            assert_eq!(subscriber.data[i as usize], i);
+        }
     }
 }
