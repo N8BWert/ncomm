@@ -4,7 +4,7 @@
 //! The UDP Publisher sends data as a UDP Datagram to some other Subscriber.
 //! 
 
-use std::{net::UdpSocket, collections::HashMap};
+use std::{net::UdpSocket, collections::HashMap, hash::Hash};
 use std::marker::PhantomData;
 
 use crate::publisher_subscriber::{Publish, SubscribeRemote, Receive};
@@ -43,10 +43,10 @@ pub struct BufferedUdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
 /// 
 /// The Hash function is used to map a reference to a piece of data to its corresponding key
 /// in the data HashMap.
-pub struct MappedUdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
+pub struct MappedUdpSubscriber<Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> {
     rx: UdpSocket,
-    pub data: HashMap<u128, Data>,
-    hash: Box<dyn Fn(&Data) -> u128>,
+    pub data: HashMap<K, Data>,
+    hash: Box<dyn Fn(&Data) -> K>,
 }
 
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> UdpPublisher<'a, Data, DATA_SIZE> {
@@ -92,12 +92,12 @@ impl<'a, Data: Send + Clone, const DATA_SIZE: usize> BufferedUdpSubscriber<Data,
     }
 }
 
-impl<'a, Data: Send + Clone, const DATA_SIZE: usize> MappedUdpSubscriber<Data, DATA_SIZE> {
+impl<'a, Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> MappedUdpSubscriber<Data, K, DATA_SIZE> {
     /// Create a new MappedUdpSubscriber with a UdpSocket bound to the bind address listening to the
     /// from address.
     /// 
     /// To only listen to communication on a specific address specify the from_address
-    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> u128>) -> Self {
+    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> K>) -> Self {
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given bind address");
         if let Some(from_address) = from_address {
             socket.connect(from_address).expect("couldn't connect to the given address");
@@ -157,7 +157,7 @@ impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for BufferedUdpSubscrib
     }
 }
 
-impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for MappedUdpSubscriber<Data, DATA_SIZE> {
+impl<Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Receive for MappedUdpSubscriber<Data, K, DATA_SIZE> {
     fn update_data(&mut self) {
         loop {
             let mut buf = [0u8; DATA_SIZE];
@@ -272,6 +272,25 @@ mod tests {
         assert_eq!(subscriber.data.len(), 9);
         for i in 0..=8u8 {
             assert_eq!(subscriber.data[i as usize], i);
+        }
+    }
+
+    #[test]
+    // Test that a mapped udp subscriber can be created and functions as expected
+    fn test_mapped_udp_subscriber() {
+        let mut subscriber: MappedUdpSubscriber<u8, u8, 1> = MappedUdpSubscriber::new("127.0.0.1:9006", Some("127.0.0.1:9007"), Box::new(|data: &u8| { data * 3 }));
+        let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:9007", vec!["127.0.0.1:9006"]);
+
+        for i in 0..=5u8 {
+            publisher.send(i);
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        for i in 0..=5u8 {
+            assert_eq!(subscriber.data.get(&(i * 3)), Some(i).as_ref());
         }
     }
 }

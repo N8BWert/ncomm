@@ -4,9 +4,8 @@
 //! The PackedUdpPublisher sends data as a UDP Datagram to some other PackedUdpSubscriber
 //! 
 
-use std::net::UdpSocket;
+use std::{net::UdpSocket, collections::HashMap, hash::Hash};
 use std::marker::PhantomData;
-use std::collections::HashMap;
 
 use packed_struct::{PackedStruct, PackedStructSlice};
 use packed_struct::types::bits::ByteArray;
@@ -44,10 +43,10 @@ pub struct BufferedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, const 
 /// Mapped Packed Struct Udp Subscriber Type
 /// 
 /// Sort incoming data based on its hash and stores into a data hashmap
-pub struct MappedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> {
+pub struct MappedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> {
     rx: UdpSocket,
-    pub data: HashMap<u128, Data>,
-    hash: Box<dyn Fn(&Data) -> u128>,
+    pub data: HashMap<K, Data>,
+    hash: Box<dyn Fn(&Data) -> K>,
 }
 
 impl<'a, Data: PackedStruct + Send + Clone> PackedUdpPublisher<'a, Data> {
@@ -107,12 +106,12 @@ impl<'a, Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> BufferedPack
     }
 }
 
-impl<'a, Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> MappedPackedUdpSubscriber<Data, DATA_SIZE> {
+impl<'a, Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> MappedPackedUdpSubscriber<Data, K, DATA_SIZE> {
     ///Create a new MappedPackedSubscriber bound to the bind address
     /// 
     /// The from_address field is optional, but if given it will make this subscriber ignore all communcations
     /// except the one from the given address
-    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> u128>) -> Self {
+    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> K>) -> Self {
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
         if let Some(from_address) = from_address {
             socket.connect(from_address).expect("couldn't connect to the given address");
@@ -189,7 +188,7 @@ impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for Buff
     }
 }
 
-impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for MappedPackedUdpSubscriber<Data, DATA_SIZE> {
+impl<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Receive for MappedPackedUdpSubscriber<Data, K, DATA_SIZE> {
     fn update_data(&mut self) {
         loop {
             let mut buf = [0u8; DATA_SIZE];
@@ -324,6 +323,24 @@ mod tests {
         assert_eq!(subscriber.data.len(), 6);
         for i in 0..=5u8 {
             assert_eq!(subscriber.data[i as usize], TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+    }
+
+    #[test]
+    fn test_mapped_packed_udp_subscriber() {
+        let mut subscriber: MappedPackedUdpSubscriber<TestData, u8, 1> = MappedPackedUdpSubscriber::new("127.0.0.1:10012", Some("127.0.0.1:10013"), Box::new(|data: &TestData| { *data.tiny_int }));
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10013", vec!["127.0.0.1:10012"]);
+
+        for i in 0..=5u8 {
+            publisher.send(TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+        
+        subscriber.update_data();
+
+        for i in 0..=5u8 {
+            assert_eq!(*subscriber.data.get(&i).unwrap(), TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
         }
     }
 }
