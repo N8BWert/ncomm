@@ -5,7 +5,7 @@
 //! to a set of subscribers.
 //! 
 
-use std::sync::{mpsc, mpsc::{Sender, Receiver}};
+use std::{sync::{mpsc, mpsc::{Sender, Receiver}}, collections::HashMap};
 
 use crate::publisher_subscriber::{Publish, Subscribe, Receive};
 
@@ -25,6 +25,15 @@ pub struct LocalPublisher<Data: Send + Clone> {
 pub struct LocalSubscriber<Data: Send + Clone> {
     rx: Receiver<Data>,
     pub data: Option<Data>,
+}
+
+/// Local Subscriber that inserts data into a HashMap
+/// 
+// The hash function given is used to determine the key to map a given piece of data to
+pub struct LocalMapSubscriber<Data: Send + Clone> {
+    rx: Receiver<Data>,
+    pub data: HashMap<u128, Data>,
+    hash: Box<dyn Fn(&Data) -> u128>,
 }
 
 impl<Data: Send + Clone> LocalPublisher<Data> {
@@ -69,6 +78,27 @@ impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
 
         if let Some(data) = iter.last() {
             self.data = Some(data);
+        }
+    }
+}
+
+impl<Data: Send + Clone> LocalMapSubscriber<Data> {
+    pub fn new(rx: Receiver<Data>, hash_function: Box<dyn Fn(&Data) -> u128>) -> Self {
+        Self {
+            rx,
+            data: HashMap::new(),
+            hash: hash_function,
+        }
+    }
+}
+
+impl<Data: Send + Clone> Receive for LocalMapSubscriber<Data> {
+    fn update_data(&mut self) {
+        let iter = self.rx.try_iter();
+
+        for data in iter {
+            let label = (self.hash)(&data);
+            self.data.insert(label, data);
         }
     }
 }

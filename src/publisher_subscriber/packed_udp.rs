@@ -6,6 +6,7 @@
 
 use std::net::UdpSocket;
 use std::marker::PhantomData;
+use std::collections::HashMap;
 
 use packed_struct::{PackedStruct, PackedStructSlice};
 use packed_struct::types::bits::ByteArray;
@@ -38,6 +39,15 @@ pub struct PackedUdpSubscriber<Data: PackedStruct + Send + Clone, const DATA_SIZ
 pub struct BufferedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> {
     rx: UdpSocket,
     pub data: Vec<Data>,
+}
+
+/// Mapped Packed Struct Udp Subscriber Type
+/// 
+/// Sort incoming data based on its hash and stores into a data hashmap
+pub struct MappedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> {
+    rx: UdpSocket,
+    pub data: HashMap<u128, Data>,
+    hash: Box<dyn Fn(&Data) -> u128>,
 }
 
 impl<'a, Data: PackedStruct + Send + Clone> PackedUdpPublisher<'a, Data> {
@@ -97,6 +107,28 @@ impl<'a, Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> BufferedPack
     }
 }
 
+impl<'a, Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> MappedPackedUdpSubscriber<Data, DATA_SIZE> {
+    ///Create a new MappedPackedSubscriber bound to the bind address
+    /// 
+    /// The from_address field is optional, but if given it will make this subscriber ignore all communcations
+    /// except the one from the given address
+    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> u128>) -> Self {
+        let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
+        if let Some(from_address) = from_address {
+            socket.connect(from_address).expect("couldn't connect to the given address");
+        }
+        socket.set_nonblocking(true).unwrap();
+
+        assert_eq!(<Data as PackedStruct>::ByteArray::len(), DATA_SIZE);
+
+        Self {
+            rx: socket,
+            data: HashMap::new(),
+            hash: hash_function,
+        }
+    }
+}
+
 impl<'a, Data: PackedStruct + Send + Clone> Publish<Data> for PackedUdpPublisher<'a, Data> {
     fn send(&mut self, data: Data) {
         let packed_data = match data.pack() {
@@ -152,6 +184,23 @@ impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for Buff
 
             if let Ok(found_data) = temp {
                 self.data.push(found_data);
+            }
+        }
+    }
+}
+
+impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for MappedPackedUdpSubscriber<Data, DATA_SIZE> {
+    fn update_data(&mut self) {
+        loop {
+            let mut buf = [0u8; DATA_SIZE];
+            let temp = match self.rx.recv(&mut buf) {
+                Ok(_received) => Data::unpack_from_slice(&buf[..]),
+                Err(_) => break,
+            };
+
+            if let Ok(found_data) = temp {
+                let label = (self.hash)(&found_data);
+                self.data.insert(label, found_data);
             }
         }
     }
