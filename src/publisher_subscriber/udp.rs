@@ -4,7 +4,7 @@
 //! The UDP Publisher sends data as a UDP Datagram to some other Subscriber.
 //! 
 
-use std::{net::UdpSocket, collections::HashMap, hash::Hash};
+use std::{net::UdpSocket, collections::HashMap, hash::Hash, sync::Arc};
 use std::marker::PhantomData;
 
 use crate::publisher_subscriber::{Publish, SubscribeRemote, Receive};
@@ -46,7 +46,7 @@ pub struct BufferedUdpSubscriber<Data: Send + Clone, const DATA_SIZE: usize> {
 pub struct MappedUdpSubscriber<Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> {
     rx: UdpSocket,
     pub data: HashMap<K, Data>,
-    hash: Box<dyn Fn(&Data) -> K>,
+    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
 }
 
 impl<'a, Data: Send + Clone, const DATA_SIZE: usize> UdpPublisher<'a, Data, DATA_SIZE> {
@@ -97,7 +97,7 @@ impl<'a, Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> MappedUdpSubs
     /// from address.
     /// 
     /// To only listen to communication on a specific address specify the from_address
-    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Box<dyn Fn(&Data) -> K>) -> Self {
+    pub fn new(bind_address: &'a str, from_address: Option<&'a str>, hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Self {
         let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given bind address");
         if let Some(from_address) = from_address {
             socket.connect(from_address).expect("couldn't connect to the given address");
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     // Test that a mapped udp subscriber can be created and functions as expected
     fn test_mapped_udp_subscriber() {
-        let mut subscriber: MappedUdpSubscriber<u8, u8, 1> = MappedUdpSubscriber::new("127.0.0.1:9006", Some("127.0.0.1:9007"), Box::new(|data: &u8| { data * 3 }));
+        let mut subscriber: MappedUdpSubscriber<u8, u8, 1> = MappedUdpSubscriber::new("127.0.0.1:9006", Some("127.0.0.1:9007"), Arc::new(|data: &u8| { data * 3 }));
         let mut publisher: UdpPublisher<u8, 1> = UdpPublisher::new("127.0.0.1:9007", vec!["127.0.0.1:9006"]);
 
         for i in 0..=5u8 {

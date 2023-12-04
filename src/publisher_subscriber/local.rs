@@ -5,7 +5,7 @@
 //! to a set of subscribers.
 //! 
 
-use std::{sync::{mpsc, mpsc::{Sender, Receiver}}, collections::HashMap, hash::Hash};
+use std::{sync::{mpsc, mpsc::{Sender, Receiver}, Arc}, collections::HashMap, hash::Hash};
 
 use crate::publisher_subscriber::{Publish, Subscribe, Receive};
 
@@ -33,7 +33,7 @@ pub struct LocalSubscriber<Data: Send + Clone> {
 pub struct MappedLocalSubscriber<Data: Send + Clone, K: Eq + Hash> {
     rx: Receiver<Data>,
     pub data: HashMap<K, Data>,
-    hash: Box<dyn Fn(&Data) -> K>,
+    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
 }
 
 impl<Data: Send + Clone> LocalPublisher<Data> {
@@ -48,7 +48,7 @@ impl<Data: Send + Clone> LocalPublisher<Data> {
         LocalSubscriber::new_empty(rx)
     }
 
-    pub fn create_mapped_subscriber<K: Eq + Hash>(&mut self, hash_function: Box<dyn Fn(&Data) -> K>) -> MappedLocalSubscriber<Data, K> {
+    pub fn create_mapped_subscriber<K: Eq + Hash>(&mut self, hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> MappedLocalSubscriber<Data, K> {
         let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
         self.txs.push(tx);
         MappedLocalSubscriber::new(rx, hash_function)
@@ -95,7 +95,7 @@ impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
 }
 
 impl<Data: Send + Clone, K: Eq + Hash> MappedLocalSubscriber<Data, K> {
-    pub fn new(rx: Receiver<Data>, hash_function: Box<dyn Fn(&Data) -> K>) -> Self {
+    pub fn new(rx: Receiver<Data>, hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Self {
         Self {
             rx,
             data: HashMap::new(),
@@ -163,7 +163,7 @@ mod tests {
     /// Test that the mapped subscriber can receive data and update its internal state
     fn test_mapped_subscriber() {
         let mut publisher: LocalPublisher<u8> = LocalPublisher::new();
-        let mut subscriber = publisher.create_mapped_subscriber(Box::new(|data: &u8| { data * 3 }));
+        let mut subscriber = publisher.create_mapped_subscriber(Arc::new(|data: &u8| { data * 3 }));
         
         for i in 0..=5 {
             publisher.send(i);
