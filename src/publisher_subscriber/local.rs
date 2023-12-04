@@ -5,7 +5,7 @@
 //! to a set of subscribers.
 //! 
 
-use std::sync::{mpsc, mpsc::{Sender, Receiver}};
+use std::{sync::{mpsc, mpsc::{Sender, Receiver}, Arc}, collections::HashMap, hash::Hash};
 
 use crate::publisher_subscriber::{Publish, Subscribe, Receive};
 
@@ -27,10 +27,31 @@ pub struct LocalSubscriber<Data: Send + Clone> {
     pub data: Option<Data>,
 }
 
+/// Local Subscriber that inserts data into a HashMap
+/// 
+// The hash function given is used to determine the key to map a given piece of data to
+pub struct MappedLocalSubscriber<Data: Send + Clone, K: Eq + Hash> {
+    rx: Receiver<Data>,
+    pub data: HashMap<K, Data>,
+    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+}
+
 impl<Data: Send + Clone> LocalPublisher<Data> {
     /// Creates a new Publisher with empty vector of Sender<T> ends
     pub const fn new() -> Self {
         Self{ txs: Vec::new() }
+    }
+
+    pub fn create_basic_subscriber(&mut self) -> LocalSubscriber<Data> {
+        let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
+        self.txs.push(tx);
+        LocalSubscriber::new_empty(rx)
+    }
+
+    pub fn create_mapped_subscriber<K: Eq + Hash>(&mut self, hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> MappedLocalSubscriber<Data, K> {
+        let (tx, rx): (Sender<Data>, Receiver<Data>) = mpsc::channel();
+        self.txs.push(tx);
+        MappedLocalSubscriber::new(rx, hash_function)
     }
 }
 
@@ -69,6 +90,27 @@ impl<Data: Send + Clone> Receive for LocalSubscriber<Data> {
 
         if let Some(data) = iter.last() {
             self.data = Some(data);
+        }
+    }
+}
+
+impl<Data: Send + Clone, K: Eq + Hash> MappedLocalSubscriber<Data, K> {
+    pub fn new(rx: Receiver<Data>, hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Self {
+        Self {
+            rx,
+            data: HashMap::new(),
+            hash: hash_function,
+        }
+    }
+}
+
+impl<Data: Send + Clone, K: Eq + Hash> Receive for MappedLocalSubscriber<Data, K> {
+    fn update_data(&mut self) {
+        let iter = self.rx.try_iter();
+
+        for data in iter {
+            let label = (self.hash)(&data);
+            self.data.insert(label, data);
         }
     }
 }
@@ -115,5 +157,21 @@ mod tests {
         let mut subscriber = publisher.create_subscriber();
         subscriber.update_data();
         assert_eq!(subscriber.data, None);
+    }
+
+    #[test]
+    /// Test that the mapped subscriber can receive data and update its internal state
+    fn test_mapped_subscriber() {
+        let mut publisher: LocalPublisher<u8> = LocalPublisher::new();
+        let mut subscriber = publisher.create_mapped_subscriber(Arc::new(|data: &u8| { data * 3 }));
+        
+        for i in 0..=5 {
+            publisher.send(i);
+        }
+        subscriber.update_data();
+
+        for i in 0u8..=5u8 {
+            assert_eq!(subscriber.data.get(&(i * 3)), Some(i).as_ref());
+        }
     }
 }
