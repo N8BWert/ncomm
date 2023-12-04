@@ -157,6 +157,22 @@ impl<Data: Send + Clone, const DATA_SIZE: usize> Receive for BufferedUdpSubscrib
     }
 }
 
+impl<Data: Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Receive for MappedUdpSubscriber<Data, K, DATA_SIZE> {
+    fn update_data(&mut self) {
+        loop {
+            let mut buf = [0u8; DATA_SIZE];
+            match self.rx.recv(&mut buf) {
+                Ok(_received) => {
+                    let data: Data = unsafe { std::mem::transmute_copy(&buf) };
+                    let label = (self.hash)(&data);
+                    self.data.insert(label, data);
+                },
+                Err(_) => break,
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

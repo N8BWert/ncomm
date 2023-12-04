@@ -46,7 +46,7 @@ pub struct BufferedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, const 
 pub struct MappedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> {
     rx: UdpSocket,
     pub data: HashMap<K, Data>,
-    hash: Arc<dyn Fn(&Data) -> K>,
+    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
 }
 
 impl<'a, Data: PackedStruct + Send + Clone> PackedUdpPublisher<'a, Data> {
@@ -183,6 +183,23 @@ impl<Data: PackedStruct + Send + Clone, const DATA_SIZE: usize> Receive for Buff
 
             if let Ok(found_data) = temp {
                 self.data.push(found_data);
+            }
+        }
+    }
+}
+
+impl<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Receive for MappedPackedUdpSubscriber<Data, K, DATA_SIZE> {
+    fn update_data(&mut self) {
+        loop {
+            let mut buf = [0u8; DATA_SIZE];
+            let temp = match self.rx.recv(&mut buf) {
+                Ok(_received) => Data::unpack_from_slice(&buf[..]),
+                Err(_) => break,
+            };
+
+            if let Ok(found_data) = temp {
+                let label = (self.hash)(&found_data);
+                self.data.insert(label, found_data);
             }
         }
     }
