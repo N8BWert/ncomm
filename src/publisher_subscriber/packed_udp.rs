@@ -4,6 +4,7 @@
 //! The PackedUdpPublisher sends data as a UDP Datagram to some other PackedUdpSubscriber
 //! 
 
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{net::UdpSocket, collections::HashMap, hash::Hash, sync::Arc};
 use std::marker::PhantomData;
 
@@ -47,6 +48,17 @@ pub struct MappedPackedUdpSubscriber<Data: PackedStruct + Send + Clone, K: Eq + 
     rx: UdpSocket,
     pub data: HashMap<K, Data>,
     hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+}
+
+/// Mapped Packed Struct Udp Subscriber That Keeps track of the timestamp (in ms) of the last
+/// received packet
+/// 
+/// Sort incoming data based on its hash and stores into a data hashmap along with timestamp
+pub struct MappedPackedTimedUdpSubscriber<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> {
+    rx: UdpSocket,
+    data: HashMap<K, (Data, u128)>,
+    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+    timeout: u128,
 }
 
 impl<'a, Data: PackedStruct + Send + Clone> PackedUdpPublisher<'a, Data> {
@@ -128,6 +140,47 @@ impl<'a, Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize
     }
 }
 
+impl<'a, Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> MappedPackedTimedUdpSubscriber<Data, K, DATA_SIZE> {
+    /// Create a new MappedPackedTimedUdpSubscriber bound to the bind address
+    /// 
+    /// The from_address field is optional, but if given it will make this subscriber ignore all communications
+    /// except the one from the given address
+    /// 
+    /// The timeout is the amount of time in ms that data is valid for.
+    pub fn new(
+        bind_address: &'a str,
+        from_address: Option<&'a str>,
+        hash_function: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+        timeout: u128,
+    ) -> Self {
+        let socket = UdpSocket::bind(bind_address).expect("couldn't bind to the given address");
+        if let Some(from_address) = from_address {
+            socket.connect(from_address).expect("couldn't connect to the given address");
+        }
+        socket.set_nonblocking(true).unwrap();
+
+        assert_eq!(<Data as PackedStruct>::ByteArray::len(), DATA_SIZE);
+
+        Self {
+            rx: socket,
+            data: HashMap::new(),
+            hash: hash_function,
+            timeout,
+        }
+    }
+
+    /// Get data for a given key if it has not timed out.
+    pub fn get(&self, key: &K) -> Option<&Data> {
+        if let Some(data) = self.data.get(key) {
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+            if data.1 + self.timeout >= now {
+                return Some(&data.0);
+            }
+        }
+        None
+    }
+}
+
 impl<'a, Data: PackedStruct + Send + Clone> Publish<Data> for PackedUdpPublisher<'a, Data> {
     fn send(&mut self, data: Data) {
         let packed_data = match data.pack() {
@@ -200,6 +253,23 @@ impl<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Re
             if let Ok(found_data) = temp {
                 let label = (self.hash)(&found_data);
                 self.data.insert(label, found_data);
+            }
+        }
+    }
+}
+
+impl<Data: PackedStruct + Send + Clone, K: Eq + Hash, const DATA_SIZE: usize> Receive for MappedPackedTimedUdpSubscriber<Data, K, DATA_SIZE> {
+    fn update_data(&mut self) {
+        loop {
+            let mut buf = [0u8; DATA_SIZE];
+            let temp = match self.rx.recv(&mut buf) {
+                Ok(_received) => Data::unpack_from_slice(&buf[..]),
+                Err(_) => break,
+            };
+
+            if let Ok(found_data) = temp {
+                let label = (self.hash)(&found_data);
+                self.data.insert(label, (found_data, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()));
             }
         }
     }
@@ -341,6 +411,30 @@ mod tests {
 
         for i in 0..=5u8 {
             assert_eq!(*subscriber.data.get(&i).unwrap(), TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+    }
+
+    #[test]
+    fn test_mapped_timed_udp_subscriber() {
+        let mut subscriber: MappedPackedTimedUdpSubscriber<TestData, u8, 1> = MappedPackedTimedUdpSubscriber::new("127.0.0.1:10014", Some("127.0.0.1:10015"), Arc::new(|data: &TestData| { *data.tiny_int }), 500);
+        let mut publisher: PackedUdpPublisher<TestData> = PackedUdpPublisher::new("127.0.0.1:10015", vec!["127.0.0.1:10014"]);
+
+        for i in 0..=5u8 {
+            publisher.send(TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true });
+        }
+
+        thread::sleep(time::Duration::from_millis(10));
+
+        subscriber.update_data();
+
+        for i in 0..=5u8 {
+            assert_eq!(subscriber.get(&i), Some(&TestData { tiny_int: i.into(), mode: SelfTestMode::DebugMode, enabled: true }));
+        }
+
+        thread::sleep(time::Duration::from_millis(1_000));
+
+        for i in 0..=5u8 {
+            assert_eq!(subscriber.get(&i), None);
         }
     }
 }
