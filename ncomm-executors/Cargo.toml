@@ -1,0 +1,9 @@
+[package]
+name = "ncomm-executors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ncomm-core = { path = "../ncomm-core" }
+quanta = "0.12.3"
+threadpool = "1.8.1"

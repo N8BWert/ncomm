@@ -1,0 +1,9 @@
+[package]
+name = "ncomm-update-clients-and-servers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossbeam = "0.8.4"
+ncomm-core = { path = "../ncomm-core" }
+packed_struct = "0.10.1"

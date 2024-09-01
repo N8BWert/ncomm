@@ -1,0 +1,191 @@
+//!
+//! The Threadpool Executor takes control of a number of threads and schedules
+//! nodes to be run on a threadpool
+//! 
+
+use std::{cmp::max, sync::mpsc::{Receiver, channel}};
+
+use quanta::{Clock, Instant};
+
+use threadpool::ThreadPool;
+
+use crate::{NodeWrapper, insert_into};
+
+use ncomm_core::{Executor, ExecutorState, Node};
+
+/// ThreadPool Executor
+/// 
+/// The ThreadPool Executor stores Nodes in a sorted vector and sends them to
+/// be executed by the threadPool.
+/// 
+/// Note: The ThreadPool Executor ca be interrupted by sending a true value
+/// over the mpsc channel whose receiving end is owned by the ThreadPool
+/// executor.
+/// 
+/// Addendum: The main thread of the ThreadPool is conducting the scheduling so
+/// the ThreadPool will only have n-1 worker threads where n is the total number
+/// of threads allocated to the threadpool executor.
+pub struct ThreadPoolExecutor {
+    // The sorted backing vector for the executor
+    backing: Vec<NodeWrapper>,
+    // The quanta high-precision clock backing the ThreadPoll scheduler
+    clock: Clock,
+    // The ThreadPool to execute nodes on
+    pool: ThreadPool,
+    // The current state of the executor
+    state: ExecutorState,
+    // The Instant the executor was started
+    start_instant: Instant,
+    // The Interrupt receiver channel
+    interrupt: Receiver<bool>,
+    // Whether or not the executor has been interrupted
+    interrupted: bool,
+}
+
+impl ThreadPoolExecutor {
+    /// Creates a new ThreadPool executor without any Nodes
+    pub fn new(threads: usize, interrupt: Receiver<bool>) -> Self {
+        let clock = Clock::new();
+        let now = clock.now();
+        let pool = ThreadPool::new(max(1, threads.saturating_sub(1)));
+
+        Self {
+            backing: Vec::new(),
+            clock,
+            pool,
+            state: ExecutorState::Stopped,
+            start_instant: now,
+            interrupt,
+            interrupted: false,
+        }
+    }
+
+    /// Creates a new ThreadPool Executor with a number of Nodes
+    pub fn new_with(threads: usize, interrupt: Receiver<bool>, mut nodes: Vec<Box<dyn Node>>) -> Self {
+        let mut backing = Vec::new();
+        for node in nodes.drain(..) {
+            backing.push(NodeWrapper { priority: 0, node });
+        }
+
+        let clock = Clock::new();
+        let now = clock.now();
+        let pool = ThreadPool::new(max(1, threads.saturating_sub(1)));
+
+        Self {
+            backing,
+            clock,
+            pool,
+            state: ExecutorState::Stopped,
+            start_instant: now,
+            interrupt,
+            interrupted: false,
+        }
+    }
+}
+
+impl Executor for ThreadPoolExecutor {
+    /// For each node in the ThreadPool executor the node will be updated
+    /// and start_instant will be set to the current instant
+    /// 
+    /// Note: this should probably not be called individually because it will
+    /// always be called at the beginning of `update_for_ms` or `update_loop`
+    fn start(&mut self) {
+        for node_wrapper in self.backing.iter_mut() {
+            node_wrapper.priority = 0;
+            node_wrapper.node.start();
+        }
+
+        self.interrupted = false;
+        self.state = ExecutorState::Started;
+        self.start_instant = self.clock.now();
+    }
+
+    fn update_for_ms(&mut self, ms: u128) {
+        // Start the Executor
+        self.start();
+
+        // Run the Executor
+        self.state = ExecutorState::Running;
+        let (node_tx, node_rx) = channel();
+        while self.clock.now().duration_since(self.start_instant).as_millis() < ms && !self.check_interrupt() {
+            if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+                let mut node_wrapper = self.backing.pop().unwrap();
+                let node_tx = node_tx.clone();
+                self.pool.execute(move || {
+                    node_wrapper.node.update();
+                    node_wrapper.priority += node_wrapper.node.get_update_delay();
+                    node_tx.send(node_wrapper).unwrap();
+                });
+            }
+
+            if let Ok(node_wrapper) = node_rx.try_recv() {
+                insert_into(&mut self.backing, node_wrapper);
+            }
+        }
+
+        // Stop the Executor
+        for node_wrapper in self.backing.iter_mut() {
+            node_wrapper.priority = 0;
+            node_wrapper.node.shutdown();
+        }
+        self.state = ExecutorState::Stopped;
+    }
+
+    fn update_loop(&mut self) {
+        // Start the Executor
+        self.start();
+
+        // Run the Executor
+        self.state = ExecutorState::Running;
+        let (node_tx, node_rx) = channel();
+        while !self.check_interrupt() {
+            if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+                let mut node_wrapper = self.backing.pop().unwrap();
+                let node_tx = node_tx.clone();
+                self.pool.execute(move || {
+                    node_wrapper.node.update();
+                    node_wrapper.priority += node_wrapper.node.get_update_delay();
+                    node_tx.send(node_wrapper).unwrap();
+                });
+            }
+
+            if let Ok(node_wrapper) = node_rx.try_recv() {
+                insert_into(&mut self.backing, node_wrapper);
+            }
+        }
+
+        // Stop the Executor
+        for node_wrapper in self.backing.iter_mut() {
+            node_wrapper.priority = 0;
+            node_wrapper.node.shutdown();
+        }
+        self.state = ExecutorState::Stopped;
+    }
+
+    /// Check the interrupt receiver for an interrupt
+    fn check_interrupt(&mut self) -> bool {
+        if let Ok(interrupt) = self.interrupt.try_recv() {
+            self.interrupted = interrupt;
+        }
+        self.interrupted
+    }
+
+    /// Add a node to the ThreadPool Executor.
+    /// 
+    /// Note: If the executor is currently in `ExecutorState::Started` or
+    /// `ExecutorState::Running` the node will be added with maximum
+    /// priority to the backing vector.
+    fn add_node(&mut self, node: Box<dyn Node>) {
+        if self.state == ExecutorState::Stopped {
+            self.backing.push(NodeWrapper { priority: 0, node });
+        } else {
+            insert_into(
+                &mut self.backing,
+                NodeWrapper {
+                    priority: self.clock.now().duration_since(self.start_instant).as_micros(),
+                    node,
+                }
+            );
+        }
+    }
+}
