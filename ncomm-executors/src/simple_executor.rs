@@ -12,7 +12,7 @@
 //! executor for single threaded execution.
 //! 
 
-use std::sync::mpsc::Receiver;
+use crossbeam::channel::Receiver;
 
 use quanta::{Clock, Instant};
 
@@ -186,5 +186,84 @@ impl Executor for SimpleExecutor {
                 }
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::any::Any;
+
+    use super::*;
+
+    use crossbeam::channel::unbounded;
+
+    pub struct SimpleNode {
+        pub update_delay: u128,
+        pub started: bool,
+        pub updating: bool,
+        pub num: u8,
+        pub shutdown: bool,
+    }
+
+    impl SimpleNode {
+        pub fn new(update_delay: u128) -> Self {
+            Self {
+                update_delay,
+                started: false,
+                updating: false,
+                num: 0,
+                shutdown: false,
+            }
+        }
+    }
+
+    impl Node for SimpleNode {
+        fn start(&mut self) {
+            self.started = true;
+            self.updating = false;
+        }
+
+        fn update(&mut self) {
+            self.updating = true;
+            self.num = self.num.wrapping_add(1);
+        }
+
+        fn shutdown(&mut self) {
+            self.updating = false;
+            self.shutdown = true;
+        }
+
+        fn get_update_delay(&self) -> u128 {
+            self.update_delay
+        }
+    }
+
+    #[test]
+    /// Start should set the priority of all nodes to 0, start all nodes, set its
+    /// interrupted value to false, enter the ExecutorState::Started state and set its
+    /// start instant
+    fn test_simple_executor_start() {
+        let (_, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(100_000)),
+                Box::new(SimpleNode::new(250_000)),
+            ]
+        );
+        let original_start_instant = executor.start_instant;
+
+        executor.start();
+
+        for node_wrapper in executor.backing.iter() {
+            assert_eq!(node_wrapper.priority, 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &SimpleNode = unsafe { simple_node.downcast_ref_unchecked() };
+            assert!(simple_node.started);
+        }
+        assert!(!executor.interrupted);
+        assert_eq!(executor.state, ExecutorState::Started);
+        assert!(executor.start_instant > original_start_instant);
     }
 }

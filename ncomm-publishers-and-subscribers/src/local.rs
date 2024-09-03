@@ -38,6 +38,33 @@ impl<Data: Clone> Subscriber for LocalSubscriber<Data> {
     }
 }
 
+/// Local Subscriber that stores incoming data into a buffer for processing all at once
+pub struct LocalBufferedSubscriber<Data: Clone> {
+    /// The receiver end of a crossbeam channel
+    rx: Receiver<Data>,
+    /// The buffer of data stored in the subscriber
+    buffer: Vec<Data>,
+}
+
+impl<Data: Clone> LocalBufferedSubscriber<Data> {
+    /// Clear the data buffer
+    pub fn clear(&mut self) {
+        self.buffer.clear();
+    }
+}
+
+impl<Data: Clone> Subscriber for LocalBufferedSubscriber<Data> {
+    type Target = Vec<Data>;
+
+    fn get(&mut self) -> &Self::Target {
+        for data in self.rx.try_iter() {
+            self.buffer.push(data);
+        }
+
+        &self.buffer
+    }
+}
+
 /// Local subscriber where data has a specific time-to-live and will decay
 /// after the lifetime has passed
 pub struct LocalTTLSubscriber<Data: Clone> {

@@ -77,17 +77,16 @@ impl<Data: PackedStruct, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
 
 /// A UDP Subscriber that is set to non-blocking and updates its internal data
 /// reference whenever it is dereferenced
-pub struct UdpSubscriber<Data: PackedStruct, const DATA_SIZE: usize> {
+pub struct UdpSubscriber<Data: PackedStruct> {
     /// The receiving UdpSocket
     rx: UdpSocket,
     /// The current data stored in the subscriber
     data: Option<Data>,
 }
 
-impl<Data: PackedStruct, const DATA_SIZE: usize> UdpSubscriber<Data, DATA_SIZE> {
+impl<Data: PackedStruct> UdpSubscriber<Data> {
     /// Create a new UdpSubscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr) -> Result<Self, Error>  {
-        assert!(Data::ByteArray::len() == DATA_SIZE, "DATA_SIZE must be the PackedStruct size of Data");
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -97,13 +96,13 @@ impl<Data: PackedStruct, const DATA_SIZE: usize> UdpSubscriber<Data, DATA_SIZE> 
     }
 }
 
-impl<Data: PackedStruct, const DATA_SIZE: usize> Subscriber for UdpSubscriber<Data, DATA_SIZE> {
+impl<Data: PackedStruct> Subscriber for UdpSubscriber<Data> {
     type Target = Option<Data>;
 
     fn get(&mut self) -> &Self::Target {
         let mut data = None;
 
-        let mut buffer = [0u8; DATA_SIZE];
+        let mut buffer = vec![0u8; Data::ByteArray::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
                 Ok(_received) => Data::unpack_from_slice(&buffer[..]),
@@ -122,9 +121,53 @@ impl<Data: PackedStruct, const DATA_SIZE: usize> Subscriber for UdpSubscriber<Da
     }
 }
 
+/// A Udp Subscriber that stores incoming data into a clearable buffer
+pub struct UdpBufferedSubscriber<Data: PackedStruct> {
+    /// The UdpSocket to receive data through
+    rx: UdpSocket,
+    /// The data buffer
+    buffer: Vec<Data>
+}
+
+impl<Data: PackedStruct> UdpBufferedSubscriber<Data> {
+    /// Create a new UdpBufferedSubscriber bound to a specific bind address
+    pub fn new(bind_address: SocketAddr) -> Result<Self, Error>  {
+        let rx = UdpSocket::bind(bind_address)?;
+        rx.set_nonblocking(true)?;
+        Ok(Self {
+            rx,
+            buffer: Vec::new(),
+        })
+    }
+    
+    /// Clear the buffer contained by the UdpBufferedSubscriber
+    pub fn clear(&mut self) {
+        self.buffer.clear();
+    }
+}
+
+impl<Data: PackedStruct> Subscriber for UdpBufferedSubscriber<Data> {
+    type Target = Vec<Data>;
+
+    fn get(&mut self) -> &Self::Target {
+        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        loop {
+            let temp = match self.rx.recv_from(&mut buffer) {
+                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Err(_) => break,
+            };
+            if let Ok(found_data) = temp {
+                self.buffer.push(found_data);
+            }
+        }
+
+        &self.buffer
+    }
+}
+
 /// A UDP Subscriber that updates its internal data representation with the
 /// most recent piece of data that expires after a specific time-to-live
-pub struct UdpTTLSubscriber<Data: PackedStruct, const DATA_SIZE: usize> {
+pub struct UdpTTLSubscriber<Data: PackedStruct> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// The most recent data contained by the subscriber
@@ -133,10 +176,9 @@ pub struct UdpTTLSubscriber<Data: PackedStruct, const DATA_SIZE: usize> {
     ttl: Duration,
 }
 
-impl<Data: PackedStruct, const DATA_SIZE: usize> UdpTTLSubscriber<Data, DATA_SIZE> {
+impl<Data: PackedStruct> UdpTTLSubscriber<Data> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, ttl: Duration) -> Result<Self, Error> {
-        assert!(Data::ByteArray::len() == DATA_SIZE, "DATA_SIZE must be the PackedStruct size of Data");
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -147,13 +189,13 @@ impl<Data: PackedStruct, const DATA_SIZE: usize> UdpTTLSubscriber<Data, DATA_SIZ
     }
 }
 
-impl<Data: PackedStruct, const DATA_SIZE: usize> Subscriber for UdpTTLSubscriber<Data, DATA_SIZE> {
+impl<Data: PackedStruct> Subscriber for UdpTTLSubscriber<Data> {
     type Target = Option<(Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
         let mut data = None;
 
-        let mut buffer = [0u8; DATA_SIZE];
+        let mut buffer = vec![0u8; Data::ByteArray::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
                 Ok(_received) => Data::unpack_from_slice(&buffer[..]),
@@ -179,7 +221,7 @@ impl<Data: PackedStruct, const DATA_SIZE: usize> Subscriber for UdpTTLSubscriber
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method.
-pub struct UdpMappedSubscriber<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> {
+pub struct UdpMappedSubscriber<Data: PackedStruct, K: Eq + Hash> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent data for a set of keys
@@ -188,10 +230,9 @@ pub struct UdpMappedSubscriber<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE
     hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
 }
 
-impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> UdpMappedSubscriber<Data, K, DATA_SIZE> {
+impl<Data: PackedStruct, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
-        assert!(Data::ByteArray::len() == DATA_SIZE, "DATA_SIZE must be the PackedStruct size of Data");
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -202,11 +243,11 @@ impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> UdpMappedSubscrib
     }
 }
 
-impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> Subscriber for UdpMappedSubscriber<Data, K, DATA_SIZE> {
+impl<Data: PackedStruct, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, K> {
     type Target = HashMap<K, Data>;
 
     fn get(&mut self) -> &Self::Target {
-        let mut buffer = [0u8; DATA_SIZE];
+        let mut buffer = vec![0u8; Data::ByteArray::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
                 Ok(_received) => Data::unpack_from_slice(&buffer[..]),
@@ -224,7 +265,7 @@ impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> Subscriber for Ud
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method while only keeping data that satisfies a given time-to-live.
-pub struct UdpMappedTTLSubscriber<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> {
+pub struct UdpMappedTTLSubscriber<Data: PackedStruct, K: Eq + Hash> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent valid data for a set of keys
@@ -235,10 +276,9 @@ pub struct UdpMappedTTLSubscriber<Data: PackedStruct, K: Eq + Hash, const DATA_S
     ttl: Duration,
 }
 
-impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> UdpMappedTTLSubscriber<Data, K, DATA_SIZE> {
+impl<Data: PackedStruct, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, ttl: Duration, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
-        assert!(Data::ByteArray::len() == DATA_SIZE, "DATA_SIZE must be the PackedStruct size of Data");
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -250,11 +290,11 @@ impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> UdpMappedTTLSubsc
     }
 }
 
-impl<Data: PackedStruct, K: Eq + Hash, const DATA_SIZE: usize> Subscriber for UdpMappedTTLSubscriber<Data, K, DATA_SIZE> {
+impl<Data: PackedStruct, K: Eq + Hash> Subscriber for UdpMappedTTLSubscriber<Data, K> {
     type Target = HashMap<K, (Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
-        let mut buffer = [0u8; DATA_SIZE];
+        let mut buffer = vec![0u8; Data::ByteArray::len()];
         let now = Instant::now();
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
