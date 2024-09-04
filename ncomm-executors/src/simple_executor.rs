@@ -259,8 +259,10 @@ mod tests {
         for node_wrapper in executor.backing.iter() {
             assert_eq!(node_wrapper.priority, 0);
             let simple_node: &dyn Any = &node_wrapper.node;
-            let simple_node: &SimpleNode = unsafe { simple_node.downcast_ref_unchecked() };
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
             assert!(simple_node.started);
+            assert!(!simple_node.updating);
+            assert!(!simple_node.shutdown);
         }
         assert!(!executor.interrupted);
         assert_eq!(executor.state, ExecutorState::Started);

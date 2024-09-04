@@ -13,6 +13,10 @@
 
 #![deny(missing_docs)]
 
+// To test the internal state of nodes, they need to be force
+// downcasted into their respective type.
+#![cfg_attr(test, feature(downcast_unchecked))]
+
 pub mod simple_executor;
 pub use simple_executor::SimpleExecutor;
 
