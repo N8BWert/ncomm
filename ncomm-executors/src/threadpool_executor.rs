@@ -3,15 +3,17 @@
 //! nodes to be run on a threadpool
 //! 
 
-use std::{cmp::max, sync::mpsc::{Receiver, channel}};
+use std::cmp::max;
 
 use quanta::{Clock, Instant};
 
 use threadpool::ThreadPool;
 
-use crate::{NodeWrapper, insert_into};
+use crossbeam::channel::{Receiver, unbounded};
 
 use ncomm_core::{Executor, ExecutorState, Node};
+
+use crate::{NodeWrapper, insert_into};
 
 /// ThreadPool Executor
 /// 
@@ -106,7 +108,7 @@ impl Executor for ThreadPoolExecutor {
 
         // Run the Executor
         self.state = ExecutorState::Running;
-        let (node_tx, node_rx) = channel();
+        let (node_tx, node_rx) = unbounded();
         while self.clock.now().duration_since(self.start_instant).as_millis() < ms && !self.check_interrupt() {
             if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
                 let mut node_wrapper = self.backing.pop().unwrap();
@@ -137,7 +139,7 @@ impl Executor for ThreadPoolExecutor {
 
         // Run the Executor
         self.state = ExecutorState::Running;
-        let (node_tx, node_rx) = channel();
+        let (node_tx, node_rx) = unbounded();
         while !self.check_interrupt() {
             if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
                 let mut node_wrapper = self.backing.pop().unwrap();
@@ -187,5 +189,182 @@ impl Executor for ThreadPoolExecutor {
                 }
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{any::Any, time::Duration, thread};
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum State {
+        Stopped,
+        Started,
+        Updating,
+    }
+
+    struct SimpleNode {
+        update_delay: u128,
+        num: u8,
+        state: State,
+    }
+
+    impl SimpleNode {
+        pub fn new(update_delay: u128) -> Self {
+            Self {
+                update_delay,
+                num: 0,
+                state: State::Stopped,
+            }
+        }
+    }
+
+    impl Node for SimpleNode {
+        fn start(&mut self) {
+            self.state = State::Started;
+        }
+
+        fn update(&mut self) {
+            self.state = State::Updating;
+            self.num = self.num.wrapping_add(1);
+        }
+
+        fn shutdown(&mut self) {
+            self.state = State::Stopped;
+        }
+
+        fn get_update_delay(&self) -> u128 {
+            self.update_delay
+        }
+    }
+
+    #[test]
+    fn test_start() {
+        let (_, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+       );
+       let original_start_instant = executor.start_instant;
+
+       executor.start();
+
+       for node_wrapper in executor.backing.iter() {
+        assert_eq!(node_wrapper.priority, 0);
+        let simple_node: &dyn Any = &node_wrapper.node;
+        let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+        assert_eq!(simple_node.state, State::Started);
+       }
+
+       assert!(!executor.interrupted);
+       assert_eq!(executor.state, ExecutorState::Started);
+       assert!(executor.start_instant > original_start_instant);
+    }
+
+    #[test]
+    fn test_update_for_ms() {
+        let (_, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+       );
+
+       let start = executor.clock.now();
+       executor.update_for_ms(100);
+       let end = executor.clock.now();
+
+       // Check the nodes were started and updated
+       for node_wrapper in executor.backing.iter() {
+        assert_eq!(node_wrapper.priority, 0);
+        let simple_node: &dyn Any = &node_wrapper.node;
+        let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+        assert_eq!(simple_node.state, State::Stopped);
+        assert!([3, 4, 5, 9, 10, 11].contains(&simple_node.num));
+       }
+
+       assert!(Duration::from_millis(95) < end - start);
+       assert!(end - start < Duration::from_millis(105));
+    }
+
+    #[test]
+    fn test_check_interrupt() {
+        let (tx, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+       );
+
+       tx.send(true).unwrap();
+
+       assert!(executor.check_interrupt());
+    }
+
+    #[test]
+    fn test_add_node() {
+        let (_, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+       );
+
+       executor.add_node(Box::new(SimpleNode::new(1_000)));
+
+       assert_eq!(executor.backing.len(), 3);
+    }
+
+    #[test]
+    fn test_update_loop() {
+        let (tx, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            2,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+        );
+
+        let handle = thread::spawn(move || {
+            executor.update_loop();
+            executor
+        });
+
+        thread::sleep(Duration::from_millis(100));
+        tx.send(true).unwrap();
+
+        let executor = handle.join().unwrap();
+        for node_wrapper in executor.backing.iter() {
+            assert_eq!(node_wrapper.priority, 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+            assert_eq!(simple_node.state, State::Stopped);
+            assert!([3, 4, 5, 9, 10, 11].contains(&simple_node.num));
+        }
+
+        assert!(executor.interrupted);
+        assert_eq!(executor.state, ExecutorState::Stopped);
     }
 }

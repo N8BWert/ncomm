@@ -16,9 +16,9 @@ use crossbeam::channel::Receiver;
 
 use quanta::{Clock, Instant};
 
-use crate::{NodeWrapper, insert_into};
-
 use ncomm_core::{Executor, ExecutorState, Node};
+
+use crate::{NodeWrapper, insert_into};
 
 /// Simple Executor
 /// 
@@ -191,46 +191,47 @@ impl Executor for SimpleExecutor {
 
 #[cfg(test)]
 mod tests {
-    use std::any::Any;
-
     use super::*;
+
+    use std::{any::Any, time::Duration, thread};
 
     use crossbeam::channel::unbounded;
 
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum State {
+        Stopped,
+        Started,
+        Updating,
+    }
+
     pub struct SimpleNode {
         pub update_delay: u128,
-        pub started: bool,
-        pub updating: bool,
         pub num: u8,
-        pub shutdown: bool,
+        state: State,
     }
 
     impl SimpleNode {
         pub fn new(update_delay: u128) -> Self {
             Self {
                 update_delay,
-                started: false,
-                updating: false,
                 num: 0,
-                shutdown: false,
+                state: State::Stopped,
             }
         }
     }
 
     impl Node for SimpleNode {
         fn start(&mut self) {
-            self.started = true;
-            self.updating = false;
+            self.state = State::Started;
         }
 
         fn update(&mut self) {
-            self.updating = true;
+            self.state = State::Updating;
             self.num = self.num.wrapping_add(1);
         }
 
         fn shutdown(&mut self) {
-            self.updating = false;
-            self.shutdown = true;
+            self.state = State::Stopped;
         }
 
         fn get_update_delay(&self) -> u128 {
@@ -260,12 +261,108 @@ mod tests {
             assert_eq!(node_wrapper.priority, 0);
             let simple_node: &dyn Any = &node_wrapper.node;
             let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
-            assert!(simple_node.started);
-            assert!(!simple_node.updating);
-            assert!(!simple_node.shutdown);
+            assert_eq!(simple_node.state, State::Started);
         }
         assert!(!executor.interrupted);
         assert_eq!(executor.state, ExecutorState::Started);
         assert!(executor.start_instant > original_start_instant);
+    }
+
+    #[test]
+    fn test_update_for_ms() {
+        let (_, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+        );
+
+        let start = executor.clock.now();
+        executor.update_for_ms(100);
+        let end = executor.clock.now();
+
+        // Check the nodes were started and updated
+        for node_wrapper in executor.backing.iter() {
+            // Priority should have been reset to 0
+            assert!(node_wrapper.priority == 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+            assert_eq!(simple_node.state, State::Stopped);
+            // Check the node has been updated a valid number of times
+            assert!([9, 10, 11, 3, 4, 5].contains(&simple_node.num));
+        }
+
+        assert!(Duration::from_millis(95) < end - start);
+        assert!(end - start < Duration::from_millis(105));
+    }
+
+    #[test]
+    fn test_check_interrupt() {
+        let (tx, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+        );
+
+        tx.send(true).unwrap();
+
+        assert!(executor.check_interrupt());
+    }
+
+    #[test]
+    fn test_add_node_stopped() {
+        let (_, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+        );
+
+        executor.add_node(Box::new(SimpleNode::new(1_000)));
+
+        assert_eq!(executor.backing.len(), 3);
+    }
+
+    #[test]
+    fn test_update_loop() {
+        let (tx, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(10_000)),
+                Box::new(SimpleNode::new(25_000)),
+            ]
+        );
+
+        let handle = thread::spawn(move || {
+            executor.update_loop();
+            executor
+        });
+
+        thread::sleep(Duration::from_millis(100));
+        tx.send(true).unwrap();
+
+        let executor = handle.join().unwrap();
+        for node_wrapper in executor.backing.iter() {
+            assert_eq!(node_wrapper.priority, 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+            assert_eq!(simple_node.state, State::Stopped);
+            assert!([3, 4, 5, 9, 10, 11].contains(&simple_node.num));
+        }
+
+        assert!(executor.interrupted);
+        assert_eq!(executor.state, ExecutorState::Stopped);
     }
 }
