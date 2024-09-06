@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 crossbeam = "0.8.4"
 ncomm-core = { path = "../ncomm-core" }
-packed_struct = "0.10.1"
+ncomm-utils = { path = "../ncomm-utils" }

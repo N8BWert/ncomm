@@ -14,18 +14,12 @@ use std::{
     hash::Hash,
 };
 
-use packed_struct::{
-    PackedStruct,
-    PackedStructSlice,
-    PackingError,
-    types::bits::ByteArray,
-};
-
 use ncomm_core::{Publisher, Subscriber};
+use ncomm_utils::packing::{Packable, PackingError};
 
-/// A UDP Publisher that publishes data in a way defined by the PackedStruct
+/// A UDP Publisher that publishes data in a way defined by the Packable
 /// layout to a group of addresses
-pub struct UdpPublisher<Data: PackedStruct, A: ToSocketAddrs> {
+pub struct UdpPublisher<Data: Packable, A: ToSocketAddrs> {
     // the UdpSocket bound for transmission
     tx: UdpSocket,
     /// The addresses to send data along.
@@ -39,7 +33,7 @@ pub struct UdpPublisher<Data: PackedStruct, A: ToSocketAddrs> {
     phantom: PhantomData<Data>,
 }
 
-impl<Data: PackedStruct, A: ToSocketAddrs> UdpPublisher<Data, A> {
+impl<Data: Packable, A: ToSocketAddrs> UdpPublisher<Data, A> {
     /// Create a new UdpPublisher
     pub fn new(bind_address: SocketAddr, send_addresses: A) -> Result<Self, Error> {
         let tx = UdpSocket::bind(bind_address)?;
@@ -60,15 +54,15 @@ pub enum UdpPublishError {
     PackingError(PackingError),
 }
 
-impl<Data: PackedStruct, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
+impl<Data: Packable, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
     type Data = Data;
     type Error = UdpPublishError;
 
     fn publish(&mut self, data: Self::Data) -> Result<(), Self::Error> {
-        let packed_data = data.pack().map_err(UdpPublishError::PackingError)?;
-        let packed_data = packed_data.as_bytes_slice();
+        let mut packed_data = vec![0u8; Data::len()];
+        data.pack(&mut packed_data).map_err(UdpPublishError::PackingError)?;
 
-        self.tx.send_to(packed_data, &self.addresses)
+        self.tx.send_to(&packed_data, &self.addresses)
             .map_err(UdpPublishError::IOError)?;
         
         Ok(())
@@ -77,14 +71,14 @@ impl<Data: PackedStruct, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
 
 /// A UDP Subscriber that is set to non-blocking and updates its internal data
 /// reference whenever it is dereferenced
-pub struct UdpSubscriber<Data: PackedStruct> {
+pub struct UdpSubscriber<Data: Packable> {
     /// The receiving UdpSocket
     rx: UdpSocket,
     /// The current data stored in the subscriber
     data: Option<Data>,
 }
 
-impl<Data: PackedStruct> UdpSubscriber<Data> {
+impl<Data: Packable> UdpSubscriber<Data> {
     /// Create a new UdpSubscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr) -> Result<Self, Error>  {
         let rx = UdpSocket::bind(bind_address)?;
@@ -96,16 +90,16 @@ impl<Data: PackedStruct> UdpSubscriber<Data> {
     }
 }
 
-impl<Data: PackedStruct> Subscriber for UdpSubscriber<Data> {
+impl<Data: Packable> Subscriber for UdpSubscriber<Data> {
     type Target = Option<Data>;
 
     fn get(&mut self) -> &Self::Target {
         let mut data = None;
 
-        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        let mut buffer = vec![0u8; Data::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
-                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
             if let Ok(found_data) = temp {
@@ -122,14 +116,14 @@ impl<Data: PackedStruct> Subscriber for UdpSubscriber<Data> {
 }
 
 /// A Udp Subscriber that stores incoming data into a clearable buffer
-pub struct UdpBufferedSubscriber<Data: PackedStruct> {
+pub struct UdpBufferedSubscriber<Data: Packable> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// The data buffer
     buffer: Vec<Data>
 }
 
-impl<Data: PackedStruct> UdpBufferedSubscriber<Data> {
+impl<Data: Packable> UdpBufferedSubscriber<Data> {
     /// Create a new UdpBufferedSubscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr) -> Result<Self, Error>  {
         let rx = UdpSocket::bind(bind_address)?;
@@ -146,14 +140,14 @@ impl<Data: PackedStruct> UdpBufferedSubscriber<Data> {
     }
 }
 
-impl<Data: PackedStruct> Subscriber for UdpBufferedSubscriber<Data> {
+impl<Data: Packable> Subscriber for UdpBufferedSubscriber<Data> {
     type Target = Vec<Data>;
 
     fn get(&mut self) -> &Self::Target {
-        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        let mut buffer = vec![0u8; Data::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
-                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
             if let Ok(found_data) = temp {
@@ -167,7 +161,7 @@ impl<Data: PackedStruct> Subscriber for UdpBufferedSubscriber<Data> {
 
 /// A UDP Subscriber that updates its internal data representation with the
 /// most recent piece of data that expires after a specific time-to-live
-pub struct UdpTTLSubscriber<Data: PackedStruct> {
+pub struct UdpTTLSubscriber<Data: Packable> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// The most recent data contained by the subscriber
@@ -176,7 +170,7 @@ pub struct UdpTTLSubscriber<Data: PackedStruct> {
     ttl: Duration,
 }
 
-impl<Data: PackedStruct> UdpTTLSubscriber<Data> {
+impl<Data: Packable> UdpTTLSubscriber<Data> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, ttl: Duration) -> Result<Self, Error> {
         let rx = UdpSocket::bind(bind_address)?;
@@ -189,16 +183,16 @@ impl<Data: PackedStruct> UdpTTLSubscriber<Data> {
     }
 }
 
-impl<Data: PackedStruct> Subscriber for UdpTTLSubscriber<Data> {
+impl<Data: Packable> Subscriber for UdpTTLSubscriber<Data> {
     type Target = Option<(Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
         let mut data = None;
 
-        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        let mut buffer = vec![0u8; Data::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
-                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
 
@@ -221,7 +215,7 @@ impl<Data: PackedStruct> Subscriber for UdpTTLSubscriber<Data> {
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method.
-pub struct UdpMappedSubscriber<Data: PackedStruct, K: Eq + Hash> {
+pub struct UdpMappedSubscriber<Data: Packable, K: Eq + Hash> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent data for a set of keys
@@ -230,7 +224,7 @@ pub struct UdpMappedSubscriber<Data: PackedStruct, K: Eq + Hash> {
     hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
 }
 
-impl<Data: PackedStruct, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
         let rx = UdpSocket::bind(bind_address)?;
@@ -243,14 +237,14 @@ impl<Data: PackedStruct, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
     }
 }
 
-impl<Data: PackedStruct, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, K> {
     type Target = HashMap<K, Data>;
 
     fn get(&mut self) -> &Self::Target {
-        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        let mut buffer = vec![0u8; Data::len()];
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
-                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
             if let Ok(found_data) = temp {
@@ -265,7 +259,7 @@ impl<Data: PackedStruct, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, 
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method while only keeping data that satisfies a given time-to-live.
-pub struct UdpMappedTTLSubscriber<Data: PackedStruct, K: Eq + Hash> {
+pub struct UdpMappedTTLSubscriber<Data: Packable, K: Eq + Hash> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent valid data for a set of keys
@@ -276,7 +270,7 @@ pub struct UdpMappedTTLSubscriber<Data: PackedStruct, K: Eq + Hash> {
     ttl: Duration,
 }
 
-impl<Data: PackedStruct, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
     /// Create a new subscriber bound to a specific bind address
     pub fn new(bind_address: SocketAddr, ttl: Duration, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
         let rx = UdpSocket::bind(bind_address)?;
@@ -290,15 +284,15 @@ impl<Data: PackedStruct, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
     }
 }
 
-impl<Data: PackedStruct, K: Eq + Hash> Subscriber for UdpMappedTTLSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedTTLSubscriber<Data, K> {
     type Target = HashMap<K, (Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
-        let mut buffer = vec![0u8; Data::ByteArray::len()];
+        let mut buffer = vec![0u8; Data::len()];
         let now = Instant::now();
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
-                Ok(_received) => Data::unpack_from_slice(&buffer[..]),
+                Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
             if let Ok(found_data) = temp {
