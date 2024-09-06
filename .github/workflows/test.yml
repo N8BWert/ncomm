@@ -91,7 +91,7 @@ jobs:
         with:
           command: check
       - name: Cargo Build Minimal Publisher Subscriber Example
-        uses: action-rs/cargo@v1
+        uses: actions-rs/cargo@v1
         with:
           command: build
       - name: cd minimal-update-client-server
