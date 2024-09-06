@@ -80,15 +80,27 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+      - name: Cargo Build Minimal Client Server Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
       - name: cd minimal-publisher-subscriber
         run: cd "$GITHUB_WORKSPACE/examples/minimal-publisher-subscriber"
       - name: Cargo Check Minimal Publisher Subscriber Example
         uses: actions-rs/cargo@v1
         with:
           command: check
+      - name: Cargo Build Minimal Publisher Subscriber Example
+        uses: action-rs/cargo@v1
+        with:
+          command: build
       - name: cd minimal-update-client-server
         run: cd "$GITHUB_WORKSPACE/examples/minimal-update-client-server"
       - name: Cargo Check Minimal Update Client Server Example
         uses: actions-rs/cargo@v1
         with:
           command: check
+      - name: Cargo Build Minimal Update Client Server Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
