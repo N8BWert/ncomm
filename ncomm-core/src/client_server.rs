@@ -21,6 +21,7 @@ pub trait Client {
 
     /// Check for a response from the server containing both the sent
     /// request and the response from the server
+    #[allow(clippy::type_complexity)]
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>>;
 }
 
@@ -38,6 +39,7 @@ pub trait Server {
     type Error;
 
     /// Check for incoming requests from the client
+    #[allow(clippy::type_complexity)]
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;
 
     /// Send a response to a specific client

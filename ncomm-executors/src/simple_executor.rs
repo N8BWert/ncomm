@@ -141,13 +141,12 @@ impl Executor for SimpleExecutor {
         // Run the Executor
         self.state = ExecutorState::Running;
         while !self.check_interrupt() {
-            if self.backing.last().is_some() {
-                if self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
-                    let mut node_wrapper = self.backing.pop().unwrap();
-                    node_wrapper.node.update();
-                    node_wrapper.priority += node_wrapper.node.get_update_delay_us();
-                    insert_into(&mut self.backing, node_wrapper);
-                }
+            if self.backing.last().is_some() &&
+                self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+                let mut node_wrapper = self.backing.pop().unwrap();
+                node_wrapper.node.update();
+                node_wrapper.priority += node_wrapper.node.get_update_delay_us();
+                insert_into(&mut self.backing, node_wrapper);
             }
         }
 

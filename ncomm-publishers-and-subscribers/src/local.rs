@@ -156,13 +156,19 @@ pub struct LocalPublisher<Data: Clone> {
     data: Arc<Mutex<Option<(Data, Instant)>>>,
 }
 
+impl<Data: Clone> Default for LocalPublisher<Data> {
+    fn default() -> Self {
+        Self {
+            txs: Arc::new(Mutex::new(Vec::new())),
+            data: Arc::new(Mutex::new(None))
+        }
+    }
+}
+
 impl<Data: Clone> LocalPublisher<Data> {
     /// Create a new local publisher
     pub fn new() -> Self {
-        Self {
-            txs: Arc::new(Mutex::new(Vec::new())),
-            data: Arc::new(Mutex::new(None)),
-        }
+        Self::default()
     }
 
     /// Create a local subscriber
@@ -171,10 +177,7 @@ impl<Data: Clone> LocalPublisher<Data> {
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
 
-        let data = match self.data.lock().unwrap().as_ref() {
-            Some(data) => Some(data.0.clone()),
-            None => None,
-        };
+        let data = self.data.lock().unwrap().as_ref().map(|data| data.0.clone());
 
         LocalSubscriber {
             rx,

@@ -19,12 +19,15 @@ pub trait UpdateClient {
     type Error;
 
     /// Send a request to the server this client is associated with
+    #[allow(clippy::type_complexity)]
     fn send_request(&mut self, request: Self::Request) -> Result<(), Self::Error>;
 
     /// Poll for updates from the server
+    #[allow(clippy::type_complexity)]
     fn poll_for_updates(&mut self) -> Vec<Result<(Self::Request, Self::Update), Self::Error>>;
 
     /// Poll for responses from the server
+    #[allow(clippy::type_complexity)]
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>>;
 }
 
@@ -43,12 +46,14 @@ pub trait UpdateServer {
     type Error;
 
     /// Check for incoming requests from the client
+    #[allow(clippy::type_complexity)]
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;
 
     /// Send an update to a specific client
     fn send_update(&mut self, client_key: Self::Key, request: &Self::Request, update: Self::Update) -> Result<(), Self::Error>;
 
     /// Send a collection of updates to specified client
+    #[allow(clippy::type_complexity)]
     fn send_updates(&mut self, mut updates: Vec<(Self::Key, &Self::Request, Self::Update)>) -> Vec<Result<(), Self::Error>> {
         updates.drain(..).map(|update| self.send_update(update.0, update.1, update.2)).collect()
     }
@@ -57,6 +62,7 @@ pub trait UpdateServer {
     fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error>;
 
     /// Send a collection of responses to specific clients
+    #[allow(clippy::type_complexity)]
     fn send_responses(&mut self, mut responses: Vec<(Self::Key, Self::Request, Self::Response)>) -> Vec<Result<(), Self::Error>> {
         responses.drain(..).map(|response| self.send_response(response.0, response.1, response.2)).collect()
     }

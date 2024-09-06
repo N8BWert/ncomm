@@ -84,8 +84,8 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
                 Err(_) => break,
             };
 
-            if req.is_ok() && res.is_ok() {
-                responses.push(Ok((req.unwrap(), res.unwrap())));
+            if let (Ok(req), Ok(res)) = (req, res) {
+                responses.push(Ok((req, res)));
             }
         }
 
@@ -180,7 +180,7 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
                 .map_err(UdpClientServerError::IOError)?;
             Ok(())
         } else {
-            return Err(UdpClientServerError::UnknownClient);
+            Err(UdpClientServerError::UnknownClient)
         }
     }
 }

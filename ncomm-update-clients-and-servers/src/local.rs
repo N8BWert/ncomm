@@ -60,15 +60,22 @@ impl<Req, Updt, Res> UpdateClient for LocalUpdateClient<Req, Updt, Res> {
 /// channel
 pub struct LocalUpdateServer<Req: Clone, Updt, Res, K: Hash + Eq + Clone> {
     /// A map between client identifiers and their channels
+    #[allow(clippy::type_complexity)]
     client_map: HashMap<K, (Receiver<Req>, Sender<(Req, Updt)>, Sender<(Req, Res)>)>,
+}
+
+impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> Default for LocalUpdateServer<Req, Updt, Res, K> {
+    fn default() -> Self {
+        Self {
+            client_map: HashMap::new(),
+        }
+    }
 }
 
 impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> LocalUpdateServer<Req, Updt, Res, K> {
     /// Create a new local update server
     pub fn new() -> Self {
-        Self {
-            client_map: HashMap::new(),
-        }
+        Self::default()
     }
 
     /// Create a new local update client for this local server

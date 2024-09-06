@@ -99,8 +99,9 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                             Req::unpack(&buffer[..Req::len()]),
                             Res::unpack(&buffer[Req::len()..]),
                         );
-                        if req.is_ok() && res.is_ok() {
-                            self.response_buffer.push(Ok((req.unwrap(), res.unwrap())));
+
+                        if let (Ok(req), Ok(res)) = (req, res) {
+                            self.response_buffer.push(Ok((req, res)));
                         }
                         continue;
                     } else {
@@ -113,8 +114,8 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                 Err(_) => break,
             };
 
-            if req.is_ok() && updt.is_ok() {
-                updates.push(Ok((req.unwrap(), updt.unwrap())));
+            if let (Ok(req), Ok(updt)) = (req, updt) {
+                updates.push(Ok((req, updt)));
             }
         }
 
@@ -135,10 +136,9 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                             Updt::unpack(&buffer[Req::len()..]),
                         );
 
-                        if req.is_ok() && updt.is_ok() {
-                            self.update_buffer.push(Ok((req.unwrap(), updt.unwrap())));
+                        if let (Ok(req), Ok(updt)) = (req, updt) {
+                            self.update_buffer.push(Ok((req, updt)));
                         }
-
                         continue;
                     } else if received - Req::len() == Res::len() {
                         (
@@ -155,8 +155,8 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                 Err(_) => break,
             };
 
-            if req.is_ok() && res.is_ok() {
-                responses.push(Ok((req.unwrap(), res.unwrap())));
+            if let (Ok(req), Ok(res)) = (req, res) {
+                responses.push(Ok((req, res)));
             }
         }
 

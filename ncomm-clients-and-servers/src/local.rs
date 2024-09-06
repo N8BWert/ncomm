@@ -49,15 +49,22 @@ impl<Req, Res> Client for LocalClient<Req, Res> {
 pub struct LocalServer<Req, Res, K: Hash + Eq + Clone> {
     /// A map between client identifiers and their respective
     /// request receivers and response senders
+    #[allow(clippy::type_complexity)]
     client_map: HashMap<K, (Receiver<Req>, Sender<(Req, Res)>)>,
+}
+
+impl<Req, Res, K: Hash + Eq + Clone> Default for LocalServer<Req, Res, K> {
+    fn default() -> Self {
+        Self {
+            client_map: HashMap::new(),
+        }
+    }
 }
 
 impl<Req, Res, K: Hash + Eq + Clone> LocalServer<Req, Res, K> {
     /// Create a new Local Server
     pub fn new() -> Self {
-        Self {
-            client_map: HashMap::new(),
-        }
+        Self::default()
     }
 
     /// Create a new local client for this local server
