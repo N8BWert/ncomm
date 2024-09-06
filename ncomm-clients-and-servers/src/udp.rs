@@ -16,6 +16,7 @@ use ncomm_core::{Client, Server};
 use ncomm_utils::packing::{Packable, PackingError};
 
 /// An error with sending udp packets
+#[derive(Debug)]
 pub enum UdpClientServerError<Data: Packable> {
     /// std::io::Error
     IOError(Error),
@@ -119,6 +120,22 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> UdpServer<Req, Res, K> {
             _phantom: PhantomData,
         })
     }
+
+    /// Create a new Udp Server with a list of clients and addresses
+    pub fn new_with(bind_address: SocketAddr, clients: Vec<(K, SocketAddr)>) -> Result<Self, Error> {
+        let socket = UdpSocket::bind(bind_address)?;
+        socket.set_nonblocking(true)?;
+        Ok(Self {
+            socket,
+            client_addresses: clients,
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Add a list of known clients and their socket addresses
+    pub fn add_clients(&mut self, mut clients: Vec<(K, SocketAddr)>) {
+        self.client_addresses.append(&mut clients);
+    }
 }
 
 impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res, K> {
@@ -164,6 +181,141 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
             Ok(())
         } else {
             return Err(UdpClientServerError::UnknownClient);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
+
+    use super::*;
+
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Request {
+        num: u64,
+    }
+
+    impl Request {
+        pub fn new() -> Self {
+            Self {
+                num: random(),
+            }
+        }
+    }
+
+    impl Packable for Request {
+        fn len() -> usize {
+            8
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..8].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+            }
+        }
+    }
+    
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Response {
+        num: u64,
+    }
+
+    impl Response {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: request.num.wrapping_mul(4),
+            }
+        }
+    }
+
+    impl Packable for Response {
+        fn len() -> usize {
+            8
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..8].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+            }
+        }
+    }
+
+    #[test]
+    fn test_udp_client_server() {
+        let mut server: UdpServer<Request, Response, i32> = UdpServer::new_with(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+            vec![
+                (0, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001))),
+                (1, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002))),
+            ]
+        ).unwrap();
+
+        let mut client_one: UdpClient<Request, Response> = UdpClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+        ).unwrap();
+
+        let mut client_two: UdpClient<Request, Response> = UdpClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+        ).unwrap();
+
+        let client_one_request = Request::new();
+        let client_one_response = Response::new(client_one_request.clone());
+        let client_two_request = Request::new();
+        let client_two_response = Response::new(client_two_request.clone());
+
+        client_one.send_request(client_one_request).unwrap();
+        client_two.send_request(client_two_request).unwrap();
+
+        sleep(Duration::from_millis(50));
+
+        for request in server.poll_for_requests() {
+            if let Ok(request) = request {
+                match request.0 {
+                    0 => assert_eq!(request.1, client_one_request),
+                    _ => assert_eq!(request.1, client_two_request),
+                }
+                server.send_response(request.0, request.1, Response::new(request.1.clone())).unwrap();
+            }
+        }
+
+        sleep(Duration::from_millis(50));
+
+        for response in client_one.poll_for_responses() {
+            if let Ok(response) = response {
+                assert_eq!(response.0, client_one_request);
+                assert_eq!(response.1, client_one_response);
+            }
+        }
+        for response in client_two.poll_for_responses() {
+            if let Ok(response) = response {
+                assert_eq!(response.0, client_two_request);
+                assert_eq!(response.1, client_two_response);
+            }
         }
     }
 }

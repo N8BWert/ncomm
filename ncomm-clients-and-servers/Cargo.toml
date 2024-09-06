@@ -7,3 +7,6 @@ edition = "2021"
 crossbeam = "0.8.4"
 ncomm-core = { path = "../ncomm-core" }
 ncomm-utils = { path = "../ncomm-utils" }
+
+[dev-dependencies]
+rand = "0.8.5"

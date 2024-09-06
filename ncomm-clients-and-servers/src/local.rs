@@ -95,3 +95,56 @@ impl<Req, Res, K: Hash + Eq + Clone> Server for LocalServer<Req, Res, K> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Request {
+        num: u64,
+    }
+
+    impl Request {
+       pub fn new() -> Self {
+        Self {
+            num: random(),
+        }
+       } 
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Response {
+        num: u64,
+    }
+
+    impl Response {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: request.num.wrapping_mul(4),
+            }
+        }
+    }
+
+    #[test]
+    fn test_local_client_server() {
+        let mut server = LocalServer::new();
+        let mut client = server.create_client(0u8);
+
+        let original_request = Request::new();
+        let original_response = Response::new(original_request);
+        client.send_request(original_request).unwrap();
+        for request in server.poll_for_requests() {
+            let Ok((client, request)) = request;
+            assert_eq!(request, original_request);
+            server.send_response(client, request, Response::new(request.clone())).unwrap();
+        }
+        for response in client.poll_for_responses() {
+            let Ok((request, response)) = response;
+            assert_eq!(request, original_request);
+            assert_eq!(response, original_response);
+        }
+    }
+}
