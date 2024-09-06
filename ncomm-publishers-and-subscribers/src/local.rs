@@ -94,16 +94,16 @@ impl<Data: Clone> Subscriber for LocalTTLSubscriber<Data> {
 
 /// Local subscriber that maps incoming data to into a location in a hashmap
 /// allowing the subscriber to maintain a number of pieces of data at once.
-pub struct LocalMappedSubscriber<Data: Clone, K: Eq + Hash> {
+pub struct LocalMappedSubscriber<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> {
     /// The receiver end of a crossbeam channel
     rx: Receiver<Data>,
     /// The current data stored in the local hashmap
     data: HashMap<K, Data>,
     /// The hash function used to map incoming data into the hashmap
-    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+    hash: F,
 }
 
-impl<Data: Clone, K: Eq + Hash> Subscriber for LocalMappedSubscriber<Data, K> {
+impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for LocalMappedSubscriber<Data, K, F> {
     type Target = HashMap<K, Data>;
 
     fn get(&mut self) -> &Self::Target {
@@ -119,18 +119,18 @@ impl<Data: Clone, K: Eq + Hash> Subscriber for LocalMappedSubscriber<Data, K> {
 /// Local subscriber that maps incoming data to into a location in a hashmap
 /// while specifying a time-to-live for pieces of data contained in the
 /// hashmap
-pub struct LocalMappedTTLSubscriber<Data: Clone, K: Eq + Hash> {
+pub struct LocalMappedTTLSubscriber<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> {
     /// The receiver end of a crossbeam channel
     rx: Receiver<Data>,
     /// The current data stored in a hashmap
     data: HashMap<K, (Data, Instant)>,
     /// The hash function used to map incoming data into the hashmap
-    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+    hash: F,
     /// The time-to-live of pieces of data in the hashmap
     ttl: Duration,
 }
 
-impl<Data: Clone, K: Eq + Hash> Subscriber for LocalMappedTTLSubscriber<Data, K> {
+impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for LocalMappedTTLSubscriber<Data, K, F> {
     type Target = HashMap<K, (Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
@@ -182,6 +182,23 @@ impl<Data: Clone> LocalPublisher<Data> {
         }
     }
 
+    /// Create a local buffered subscriber
+    pub fn subscribe_buffered(&mut self) -> LocalBufferedSubscriber<Data> {
+        let mut txs = self.txs.lock().unwrap();
+        let (tx, rx) = channel::unbounded();
+        txs.push(tx);
+
+        let mut buffer = Vec::new();
+        if let Some(data) = self.data.lock().unwrap().as_ref() {
+            buffer.push(data.0.clone());
+        }
+
+        LocalBufferedSubscriber {
+            rx,
+            buffer,
+        }
+    }
+
     /// Create a local subscriber with a specific time-to-live of pieces of data
     pub fn subscribe_ttl(&mut self, timeout: Duration) -> LocalTTLSubscriber<Data> {
         let mut txs = self.txs.lock().unwrap();
@@ -204,7 +221,7 @@ impl<Data: Clone> LocalPublisher<Data> {
     /// 
     /// Note: This subscriber will only have access to them most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    pub fn subscribe_mapped<K: Eq + Hash>(&mut self, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> LocalMappedSubscriber<Data, K> {
+    pub fn subscribe_mapped<K: Eq + Hash, F: Fn(&Data) -> K>(&mut self, map: F) -> LocalMappedSubscriber<Data, K, F> {
         let mut txs = self.txs.lock().unwrap();
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
@@ -228,7 +245,7 @@ impl<Data: Clone> LocalPublisher<Data> {
     /// 
     /// Note: This subscriber will only have access to the most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    pub fn subscribe_mapped_ttl<K: Eq + Hash>(&mut self, map: Arc<dyn Fn(&Data) -> K + Send + Sync>, ttl: Duration) -> LocalMappedTTLSubscriber<Data, K> {
+    pub fn subscribe_mapped_ttl<K: Eq + Hash, F: Fn(&Data) -> K>(&mut self, map: F, ttl: Duration) -> LocalMappedTTLSubscriber<Data, K, F> {
         let mut txs = self.txs.lock().unwrap();
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
@@ -272,5 +289,94 @@ impl<Data: Clone> Publisher for LocalPublisher<Data> {
         let mut data_ref = self.data.lock().unwrap();
         *data_ref = Some((data, Instant::now()));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct TestData {
+        num: u64,
+    }
+
+    impl TestData {
+        pub fn new() -> Self {
+            Self {
+                num: random(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_publish_local_subscriber() {
+        let mut publisher = LocalPublisher::new();
+        let mut subscriber = publisher.subscribe();
+
+        let data = TestData::new();
+        publisher.publish(data.clone()).unwrap();
+        assert_eq!(subscriber.get().unwrap(), data);
+    }
+
+    #[test]
+    fn test_publish_buffered_subscriber() {
+        let mut publisher = LocalPublisher::new();
+        let mut subscriber = publisher.subscribe_buffered();
+
+        let datas = vec![TestData::new(); 100];
+
+        for data in datas.iter() {
+            publisher.publish(data.clone()).unwrap();
+        }
+
+        assert_eq!(*subscriber.get(), datas);
+    }
+
+    #[test]
+    fn test_publish_ttl_subscriber() {
+        let mut publisher = LocalPublisher::new();
+        let mut short_subscriber = publisher.subscribe_ttl(Duration::from_nanos(1));
+        let mut long_subscriber = publisher.subscribe_ttl(Duration::from_secs(100));
+
+        let data = TestData::new();
+        publisher.publish(data.clone()).unwrap();
+
+        std::thread::sleep(Duration::from_millis(100));
+
+        assert_eq!(*short_subscriber.get(), None);
+        assert_eq!(long_subscriber.get().unwrap().0, data);
+    }
+
+    #[test]
+    fn test_publish_mapped_subscriber() {
+        let mut publisher = LocalPublisher::new();
+        let mut subscriber = publisher.subscribe_mapped(|data: &TestData| { data.num });
+
+        let data = TestData::new();
+        publisher.publish(data.clone()).unwrap();
+
+        assert_eq!(*subscriber.get().get(&data.num).unwrap(), data);
+    }
+
+    #[test]
+    fn test_publish_mapped_ttl_subscriber() {
+        let mut publisher = LocalPublisher::new();
+        let mut short_subscriber = publisher.subscribe_mapped_ttl(
+            |data: &TestData| data.num,
+            Duration::from_nanos(1)
+        );
+        let mut long_subscriber = publisher.subscribe_mapped_ttl(
+            |data: &TestData| data.num,
+            Duration::from_secs(5)
+        );
+
+        let data = TestData::new();
+        publisher.publish(data.clone()).unwrap();
+
+        assert_eq!(short_subscriber.get().get(&data.num), None);
+        assert_eq!(long_subscriber.get().get(&data.num).unwrap().0, data);
     }
 }

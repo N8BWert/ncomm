@@ -6,11 +6,10 @@
 
 use std::{
     collections::HashMap,
-    net::{SocketAddr, ToSocketAddrs, UdpSocket},
+    net::{SocketAddr, UdpSocket},
     marker::PhantomData,
     io::Error,
     time::{Instant, Duration},
-    sync::Arc,
     hash::Hash,
 };
 
@@ -19,7 +18,7 @@ use ncomm_utils::packing::{Packable, PackingError};
 
 /// A UDP Publisher that publishes data in a way defined by the Packable
 /// layout to a group of addresses
-pub struct UdpPublisher<Data: Packable, A: ToSocketAddrs> {
+pub struct UdpPublisher<Data: Packable> {
     // the UdpSocket bound for transmission
     tx: UdpSocket,
     /// The addresses to send data along.
@@ -27,15 +26,15 @@ pub struct UdpPublisher<Data: Packable, A: ToSocketAddrs> {
     /// Note: addresses is public to allow users to modify the addresses
     /// to publish to in a way that is specific to the implementation of
     /// ToSocketAddrs
-    pub addresses: A,
+    pub addresses: Vec<SocketAddr>,
     // A PhantomAddress to bind the specific type of data to send to the
     // publisher
     phantom: PhantomData<Data>,
 }
 
-impl<Data: Packable, A: ToSocketAddrs> UdpPublisher<Data, A> {
+impl<Data: Packable> UdpPublisher<Data> {
     /// Create a new UdpPublisher
-    pub fn new(bind_address: SocketAddr, send_addresses: A) -> Result<Self, Error> {
+    pub fn new(bind_address: SocketAddr, send_addresses: Vec<SocketAddr>) -> Result<Self, Error> {
         let tx = UdpSocket::bind(bind_address)?;
         tx.set_nonblocking(true)?;
         Ok(Self {
@@ -47,6 +46,7 @@ impl<Data: Packable, A: ToSocketAddrs> UdpPublisher<Data, A> {
 }
 
 /// An Error with publishing udp packets
+#[derive(Debug)]
 pub enum UdpPublishError {
     /// std::io::Error occurred
     IOError(Error),
@@ -54,7 +54,7 @@ pub enum UdpPublishError {
     PackingError(PackingError),
 }
 
-impl<Data: Packable, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
+impl<Data: Packable> Publisher for UdpPublisher<Data> {
     type Data = Data;
     type Error = UdpPublishError;
 
@@ -62,8 +62,10 @@ impl<Data: Packable, A: ToSocketAddrs> Publisher for UdpPublisher<Data, A> {
         let mut packed_data = vec![0u8; Data::len()];
         data.pack(&mut packed_data).map_err(UdpPublishError::PackingError)?;
 
-        self.tx.send_to(&packed_data, &self.addresses)
-            .map_err(UdpPublishError::IOError)?;
+        for address in self.addresses.iter() {
+            self.tx.send_to(&packed_data, address)
+                .map_err(UdpPublishError::IOError)?;
+        }
         
         Ok(())
     }
@@ -215,18 +217,18 @@ impl<Data: Packable> Subscriber for UdpTTLSubscriber<Data> {
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method.
-pub struct UdpMappedSubscriber<Data: Packable, K: Eq + Hash> {
+pub struct UdpMappedSubscriber<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent data for a set of keys
     data: HashMap<K, Data>,
     /// A hash method used to create keys for data obtained via the UdpSocket
-    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+    hash: F,
 }
 
-impl<Data: Packable, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> UdpMappedSubscriber<Data, K, F> {
     /// Create a new subscriber bound to a specific bind address
-    pub fn new(bind_address: SocketAddr, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
+    pub fn new(bind_address: SocketAddr, map: F) -> Result<Self, Error> {
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -237,7 +239,7 @@ impl<Data: Packable, K: Eq + Hash> UdpMappedSubscriber<Data, K> {
     }
 }
 
-impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for UdpMappedSubscriber<Data, K, F> {
     type Target = HashMap<K, Data>;
 
     fn get(&mut self) -> &Self::Target {
@@ -259,20 +261,20 @@ impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedSubscriber<Data, K> {
 
 /// A UDP Subscriber that maps incoming data into slots in a HashMap by a given
 /// mapping method while only keeping data that satisfies a given time-to-live.
-pub struct UdpMappedTTLSubscriber<Data: Packable, K: Eq + Hash> {
+pub struct UdpMappedTTLSubscriber<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> {
     /// The UdpSocket to receive data through
     rx: UdpSocket,
     /// A hashmap containing the most recent valid data for a set of keys
     data: HashMap<K, (Data, Instant)>,
     /// A hash method used to create keys for data obtained vai the UdpSocket
-    hash: Arc<dyn Fn(&Data) -> K + Send + Sync>,
+    hash: F,
     // The total time that data is alive for
     ttl: Duration,
 }
 
-impl<Data: Packable, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> UdpMappedTTLSubscriber<Data, K, F> {
     /// Create a new subscriber bound to a specific bind address
-    pub fn new(bind_address: SocketAddr, ttl: Duration, map: Arc<dyn Fn(&Data) -> K + Send + Sync>) -> Result<Self, Error> {
+    pub fn new(bind_address: SocketAddr, ttl: Duration, map: F) -> Result<Self, Error> {
         let rx = UdpSocket::bind(bind_address)?;
         rx.set_nonblocking(true)?;
         Ok(Self {
@@ -284,7 +286,7 @@ impl<Data: Packable, K: Eq + Hash> UdpMappedTTLSubscriber<Data, K> {
     }
 }
 
-impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedTTLSubscriber<Data, K> {
+impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for UdpMappedTTLSubscriber<Data, K, F> {
     type Target = HashMap<K, (Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
@@ -304,5 +306,165 @@ impl<Data: Packable, K: Eq + Hash> Subscriber for UdpMappedTTLSubscriber<Data, K
         self.data.retain(|_, v| now.duration_since(v.1) <= self.ttl);
 
         &self.data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Data {
+        num: u64,
+    }
+
+    impl Data {
+        pub fn new() -> Self {
+            Self {
+                num: random(),
+            }
+        }
+    }
+
+    impl Packable for Data {
+        fn len() -> usize {
+            8
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..8].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap()) })
+            }
+        }
+    }
+
+    #[test]
+    fn test_publish_udp_subscriber() {
+        let mut publisher = UdpPublisher::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8000)),
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8001))],
+        ).unwrap();
+
+        let mut subscriber: UdpSubscriber<Data> = UdpSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8001))
+        ).unwrap();
+
+        let data = Data::new();
+        publisher.publish(data.clone()).unwrap();
+
+        sleep(Duration::from_millis(50));
+        assert_eq!(subscriber.get().unwrap(), data);
+    }
+
+    #[test]
+    fn test_publish_buffered_subscriber() {
+        let mut publisher = UdpPublisher::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8002)),
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8003))],
+        ).unwrap();
+
+        let mut subscriber: UdpBufferedSubscriber<Data> = UdpBufferedSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8003)),
+        ).unwrap();
+
+        let datas = vec![Data::new(); 100];
+        for data in datas.iter() {
+            publisher.publish(data.clone()).unwrap();
+        }
+
+        sleep(Duration::from_millis(50));
+        assert_eq!(*subscriber.get(), datas);
+    }
+
+    #[test]
+    fn test_publish_ttl_subscriber() {
+        let mut publisher = UdpPublisher::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8004)),
+            vec![
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8005)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8006)),
+            ],
+        ).unwrap();
+
+        let mut short_subscriber: UdpTTLSubscriber<Data> = UdpTTLSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8005)),
+            Duration::from_nanos(1),
+        ).unwrap();
+
+        let mut long_subscriber: UdpTTLSubscriber<Data> = UdpTTLSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8006)),
+            Duration::from_secs(3),
+        ).unwrap();
+
+        let data = Data::new();
+        publisher.publish(data.clone()).unwrap();
+
+        sleep(Duration::from_millis(50));
+        assert_eq!(*short_subscriber.get(), None);
+        assert_eq!(long_subscriber.get().unwrap().0, data);
+    }
+
+    #[test]
+    fn tests_publish_mapped_subscriber() {
+        let mut publisher = UdpPublisher::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8007)),
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8008))],
+        ).unwrap();
+
+        let mut subscriber = UdpMappedSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8008)),
+            |data: &Data| data.num
+        ).unwrap();
+
+        let data = Data::new();
+        publisher.publish(data.clone()).unwrap();
+
+        sleep(Duration::from_millis(50));
+        assert_eq!(*subscriber.get().get(&data.num).unwrap(), data);
+    }
+
+    #[test]
+    fn test_publish_mapped_ttl_subscriber() {
+        let mut publisher = UdpPublisher::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8009)),
+            vec![
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8010)),
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8011)),
+            ],
+        ).unwrap();
+
+        let mut short_subscriber = UdpMappedTTLSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8010)),
+            Duration::from_nanos(1),
+            |data: &Data| data.num,
+        ).unwrap();
+
+        let mut long_subscriber = UdpMappedTTLSubscriber::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8011)),
+            Duration::from_secs(3),
+            |data: &Data| data.num,
+        ).unwrap();
+
+        let data = Data::new();
+        publisher.publish(data.clone()).unwrap();
+
+        sleep(Duration::from_millis(50));
+        short_subscriber.get();
+        long_subscriber.get();
+        assert_eq!(short_subscriber.get().get(&data.num), None);
+        assert_eq!(long_subscriber.get().get(&data.num).unwrap().0, data);
     }
 }
