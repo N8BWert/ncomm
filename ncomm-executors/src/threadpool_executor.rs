@@ -115,7 +115,7 @@ impl Executor for ThreadPoolExecutor {
                 let node_tx = node_tx.clone();
                 self.pool.execute(move || {
                     node_wrapper.node.update();
-                    node_wrapper.priority += node_wrapper.node.get_update_delay();
+                    node_wrapper.priority += node_wrapper.node.get_update_delay_us();
                     node_tx.send(node_wrapper).unwrap();
                 });
             }
@@ -146,7 +146,7 @@ impl Executor for ThreadPoolExecutor {
                 let node_tx = node_tx.clone();
                 self.pool.execute(move || {
                     node_wrapper.node.update();
-                    node_wrapper.priority += node_wrapper.node.get_update_delay();
+                    node_wrapper.priority += node_wrapper.node.get_update_delay_us();
                     node_tx.send(node_wrapper).unwrap();
                 });
             }
@@ -235,7 +235,7 @@ mod tests {
             self.state = State::Stopped;
         }
 
-        fn get_update_delay(&self) -> u128 {
+        fn get_update_delay_us(&self) -> u128 {
             self.update_delay
         }
     }

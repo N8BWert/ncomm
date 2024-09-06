@@ -117,7 +117,7 @@ impl Executor for SimpleExecutor {
             if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
                 let mut node_wrapper = self.backing.pop().unwrap();
                 node_wrapper.node.update();
-                node_wrapper.priority += node_wrapper.node.get_update_delay();
+                node_wrapper.priority += node_wrapper.node.get_update_delay_us();
                 insert_into(&mut self.backing, node_wrapper);
             }
         }
@@ -145,7 +145,7 @@ impl Executor for SimpleExecutor {
                 if self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
                     let mut node_wrapper = self.backing.pop().unwrap();
                     node_wrapper.node.update();
-                    node_wrapper.priority += node_wrapper.node.get_update_delay();
+                    node_wrapper.priority += node_wrapper.node.get_update_delay_us();
                     insert_into(&mut self.backing, node_wrapper);
                 }
             }
@@ -234,7 +234,7 @@ mod tests {
             self.state = State::Stopped;
         }
 
-        fn get_update_delay(&self) -> u128 {
+        fn get_update_delay_us(&self) -> u128 {
             self.update_delay
         }
     }

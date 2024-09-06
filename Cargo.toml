@@ -5,7 +5,19 @@ members = [
     "ncomm-executors",
     "ncomm-publishers-and-subscribers",
     "ncomm-clients-and-servers",
-    "ncomm-update-clients-and-servers"
+    "ncomm-update-clients-and-servers",
+    "examples/minimal-client-server",
+    "examples/minimal-update-server-client",
+    "examples/minimal-publisher-subscriber",
+]
+
+default-members = [
+    "ncomm-core",
+    "ncomm-utils",
+    "ncomm-executors",
+    "ncomm-publishers-and-subscribers",
+    "ncomm-clients-and-servers",
+    "ncomm-update-clients-and-servers",
 ]
 
 [workspace.package]
@@ -34,4 +46,5 @@ ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", 
 crossbeam = "0.8.4"
 quanta = "0.12.3"
 threadpool = "1.8.1"
-
+ctrlc = "3.4.5"
+rand = "0.8.5"

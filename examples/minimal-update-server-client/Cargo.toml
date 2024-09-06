@@ -1,0 +1,14 @@
+[package]
+name = "minimal-update-server-client"
+description = "Minimal Update Server and Client example based on the [Ros 2 Tutorial](https://docs.ros.org/en/foxy/Tutorials/Intermediate/Writing-an-Action-Server-Client/Cpp.html)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+categories.workspace = true
+
+[dependencies]
