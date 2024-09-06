@@ -1,6 +1,13 @@
 [package]
 name = "ncomm-core"
-version = "0.1.0"
-edition = "2021"
+description = "NComm Common Traits Crate."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]

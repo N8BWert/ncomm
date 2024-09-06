@@ -1,10 +1,17 @@
 [package]
 name = "ncomm-executors"
-version = "0.1.0"
-edition = "2021"
+description = "NComm Executors"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-crossbeam = "0.8.4"
-ncomm-core = { path = "../ncomm-core" }
-quanta = "0.12.3"
-threadpool = "1.8.1"
+crossbeam = { workspace = true }
+ncomm-core = { workspace = true }
+quanta = { workspace = true }
+threadpool = { workspace = true }

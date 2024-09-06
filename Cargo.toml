@@ -1,13 +1,37 @@
-[package]
+[workspace]
+members = [
+    "ncomm-core",
+    "ncomm-utils",
+    "ncomm-executors",
+    "ncomm-publishers-and-subscribers",
+    "ncomm-clients-and-servers",
+    "ncomm-update-clients-and-servers"
+]
+
+[workspace.package]
 name = "ncomm"
-version = "1.0.0-rc"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 description = "Rust Node-Based Communication Prototype Framework"
+keywords = ["robotics", "middleware", "NComm"]
 homepage = "https://github.com/N8BWert/ncomm"
 repository = "https://github.com/N8BWert/ncomm"
 readme = "README.md"
+authors = ["Nate Wert <n8.wert.b@gmail.com>"]
+categories = ["science::robotics"]
 
-[dependencies]
+[workspace.dependencies]
+# NComm
+ncomm-core = { path = "ncomm-core", version = "1.0.0" }
+ncomm-utils = { path = "ncomm-utils", version = "1.0.0" }
+ncomm-executors = { path = "ncomm-executors", version = "1.0.0" }
+ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.0.0" }
+ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.0.0" }
+ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.0.0" }
 
-[features]
+# Outside Dependencies
+crossbeam = "0.8.4"
+quanta = "0.12.3"
+threadpool = "1.8.1"
+
