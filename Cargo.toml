@@ -7,7 +7,7 @@ members = [
     "ncomm-clients-and-servers",
     "ncomm-update-clients-and-servers",
     "examples/minimal-client-server",
-    "examples/minimal-update-server-client",
+    "examples/minimal-update-client-server",
     "examples/minimal-publisher-subscriber",
 ]
 
@@ -19,6 +19,7 @@ default-members = [
     "ncomm-clients-and-servers",
     "ncomm-update-clients-and-servers",
 ]
+resolver = "2"
 
 [workspace.package]
 name = "ncomm"

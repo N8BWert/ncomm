@@ -160,8 +160,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-update-server-client"
+name = "minimal-update-client-server"
 version = "1.0.0"
+dependencies = [
+ "crossbeam",
+ "ctrlc",
+ "ncomm-core",
+ "ncomm-executors",
+ "ncomm-update-clients-and-servers",
+]
 
 [[package]]
 name = "ncomm-clients-and-servers"
