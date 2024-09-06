@@ -1,6 +1,6 @@
-name: Unit Testing
-run-name: Unit Testing
-on: [push]
+name: Pull Request CI/CD
+run-name: Pull Request CI/CD
+on: [pull_request]
 jobs:
   Cargo-Check:
     runs-on: ubuntu-latest
