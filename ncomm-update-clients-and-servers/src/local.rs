@@ -116,3 +116,80 @@ impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> UpdateServer for LocalUpdateSe
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Request {
+        num: u64,
+    }
+
+    impl Request {
+       pub fn new() -> Self {
+        Self {
+            num: random(),
+        }
+       } 
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Update {
+        num: u64,
+    }
+
+    impl Update {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: request.num.wrapping_mul(2),
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Response {
+        num: u64,
+    }
+
+    impl Response {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: request.num.wrapping_mul(4),
+            }
+        }
+    }
+
+    #[test]
+    fn test_local_update_client_server() {
+        let mut server = LocalUpdateServer::new();
+        let mut client = server.create_update_client(0u8);
+
+        let original_request = Request::new();
+        let original_update = Update::new(original_request.clone());
+        let original_response = Response::new(original_request.clone());
+
+        client.send_request(original_request.clone()).unwrap();
+        
+        for request in server.poll_for_requests() {
+            let Ok((client, request)) = request;
+            assert_eq!(request, original_request);
+            server.send_update(client, &request, Update::new(request.clone())).unwrap();
+            server.send_response(client, request, Response::new(request.clone())).unwrap();
+        }
+
+        for update in client.poll_for_updates() {
+            let Ok((request, update)) = update;
+            assert_eq!(request, original_request);
+            assert_eq!(update, original_update);
+        }
+
+        for response in client.poll_for_responses() {
+            let Ok((request, response)) = response;
+            assert_eq!(request, original_request);
+            assert_eq!(response, original_response);
+        }
+    }
+}

@@ -187,9 +187,9 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
 
 #[cfg(test)]
 mod tests {
-    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
-
     use super::*;
+
+    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
 
     use rand::random;
 
@@ -305,17 +305,21 @@ mod tests {
 
         sleep(Duration::from_millis(50));
 
-        for response in client_one.poll_for_responses() {
-            if let Ok(response) = response {
-                assert_eq!(response.0, client_one_request);
-                assert_eq!(response.1, client_one_response);
-            }
+        let responses = client_one.poll_for_responses();
+        assert_eq!(responses.len(), 1);
+        for response in responses {
+            assert!(response.is_ok());
+            let response = response.unwrap();
+            assert_eq!(response.0, client_one_request);
+            assert_eq!(response.1, client_one_response);
         }
-        for response in client_two.poll_for_responses() {
-            if let Ok(response) = response {
-                assert_eq!(response.0, client_two_request);
-                assert_eq!(response.1, client_two_response);
-            }
+        let responses = client_two.poll_for_responses();
+        assert_eq!(responses.len(), 1);
+        for response in responses {
+            assert!(response.is_ok());
+            let response = response.unwrap();
+            assert_eq!(response.0, client_two_request);
+            assert_eq!(response.1, client_two_response);
         }
     }
 }

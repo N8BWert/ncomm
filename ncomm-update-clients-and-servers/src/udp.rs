@@ -17,6 +17,7 @@ use ncomm_core::{UpdateClient, UpdateServer};
 use ncomm_utils::packing::{Packable, PackingError};
 
 /// An error with sending udp packets
+#[derive(Debug)]
 pub enum UdpUpdateClientServerError<Data: Packable> {
     /// std::io::Error
     IOError(Error),
@@ -30,11 +31,20 @@ pub enum UdpUpdateClientServerError<Data: Packable> {
 
 /// A Udp update client that sends request via a UdpSocket to a specific IP, receives
 /// periodic updates, and finally receives a response via a bound UdpSocket
+/// 
+/// Note: If Update and Response Packets are the same length, there is a chance
+/// that when polling for updates a response will be received and processed.
+/// This is, obviously, suboptimal and I will fix this in a later version but
+/// for now I'd like to get version 1.0 out.
 pub struct UdpUpdateClient<Req: Packable, Updt: Packable, Res: Packable> {
     /// The Udp Socket bound for transmitting requests and receiving responses
     socket: UdpSocket,
     /// The address to send data to
     address: SocketAddr,
+    /// A buffer to keep any updates received when polling for responses
+    update_buffer: Vec<Result<(Req, Updt), UdpUpdateClientServerError<Req>>>,
+    /// A buffer to keep any responses received when polling for updates
+    response_buffer: Vec<Result<(Req, Res), UdpUpdateClientServerError<Req>>>,
     /// A PhantomData to bind the specific request, update, and response types to
     /// the update client
     _phantom: PhantomData<(Req, Updt, Res)>,
@@ -49,6 +59,8 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UdpUpdateClient<Req, Updt, R
         Ok(Self {
             socket,
             address: server_address,
+            update_buffer: Vec::new(),
+            response_buffer: Vec::new(),
             _phantom: PhantomData,
         })
     }
@@ -71,14 +83,33 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
 
     fn poll_for_updates(&mut self) -> Vec<Result<(Self::Request, Self::Update), Self::Error>> {
         let mut updates = Vec::new();
+        updates.append(&mut self.update_buffer);
 
-        let mut buffer = vec![0u8; Req::len() + Updt::len()];
+        let mut buffer = vec![0u8; Req::len() + std::cmp::max(Updt::len(), Res::len())];
         loop {
             let (req, updt) = match self.socket.recv(&mut buffer) {
-                Ok(_received) => (
-                    Req::unpack(&buffer[..Req::len()]),
-                    Updt::unpack(&buffer[Req::len()..]),
-                ),
+                Ok(received) => {
+                    if received - Req::len() == Updt::len() {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Updt::unpack(&buffer[Req::len()..]),
+                        )
+                    } else if received - Req::len() == Res::len() {
+                        let (req, res) = (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Res::unpack(&buffer[Req::len()..]),
+                        );
+                        if req.is_ok() && res.is_ok() {
+                            self.response_buffer.push(Ok((req.unwrap(), res.unwrap())));
+                        }
+                        continue;
+                    } else {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Err(PackingError::InvalidBufferSize),
+                        )
+                    }
+                },
                 Err(_) => break,
             };
 
@@ -92,14 +123,35 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
 
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
         let mut responses = Vec::new();
+        responses.append(&mut self.response_buffer);
 
-        let mut buffer = vec![0u8; Req::len() + Res::len()];
+        let mut buffer = vec![0u8; Req::len() + std::cmp::max(Updt::len(), Res::len())];
         loop {
             let (req, res) = match self.socket.recv(&mut buffer) {
-                Ok(_received) => (
-                    Req::unpack(&buffer[..Req::len()]),
-                    Res::unpack(&buffer[Req::len()..]),
-                ),
+                Ok(received) => {
+                    if received - Req::len() == Updt::len() {
+                        let (req, updt) = (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Updt::unpack(&buffer[Req::len()..]),
+                        );
+
+                        if req.is_ok() && updt.is_ok() {
+                            self.update_buffer.push(Ok((req.unwrap(), updt.unwrap())));
+                        }
+
+                        continue;
+                    } else if received - Req::len() == Res::len() {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Res::unpack(&buffer[Req::len()..]),
+                        )
+                    } else {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Err(PackingError::InvalidBufferSize),
+                        )
+                    }
+                },
                 Err(_) => break,
             };
 
@@ -133,6 +185,22 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UdpUpd
             client_addresses: Vec::new(),
             _phantom: PhantomData
         })
+    }
+
+    /// Create a new Udp Update Server with a list of clients and addresses
+    pub fn new_with(bind_address: SocketAddr, clients: Vec<(K, SocketAddr)>) -> Result<Self, Error> {
+        let socket = UdpSocket::bind(bind_address)?;
+        socket.set_nonblocking(true)?;
+        Ok(Self {
+            socket,
+            client_addresses: clients,
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Add a list of known clients and their socket addresses
+    pub fn add_clients(&mut self, mut clients: Vec<(K, SocketAddr)>) {
+        self.client_addresses.append(&mut clients);
     }
 }
 
@@ -196,4 +264,198 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
+
+    use rand::random;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Request {
+        num: u64,
+    }
+
+    impl Request {
+        pub fn new() -> Self {
+            Self {
+                num: random(),
+            }
+        }
+    }
+
+    impl Packable for Request {
+        fn len() -> usize {
+            8
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..8].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Update {
+        num: u128,
+    }
+
+    impl Update {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: (request.num as u128).wrapping_mul(4),
+            }
+        }
+    }
+
+    impl Packable for Update {
+        fn len() -> usize {
+            16
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..16].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 16 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u128::from_le_bytes(data[..16].try_into().unwrap())})
+            }
+        }
+    }
+    
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Response {
+        num: u64,
+    }
+
+    impl Response {
+        pub fn new(request: Request) -> Self {
+            Self {
+                num: request.num.wrapping_mul(2),
+            }
+        }
+    }
+
+    impl Packable for Response {
+        fn len() -> usize {
+            8
+        }
+
+        fn pack(self, buffer: &mut [u8]) -> Result<(), PackingError> {
+            if buffer.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(buffer[..8].copy_from_slice(&self.num.to_le_bytes()))
+            }
+        }
+
+        fn unpack(data: &[u8]) -> Result<Self, PackingError> {
+            if data.len() < 8 {
+                Err(PackingError::InvalidBufferSize)
+            } else {
+                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+            }
+        }
+    }
+
+    #[test]
+    fn test_udp_update_client_server() {
+        let mut server: UdpUpdateServer<Request, Update, Response, i32> = UdpUpdateServer::new_with(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+            vec![
+                (0, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001))),
+                (1, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002))),
+            ]
+        ).unwrap();
+
+        let mut client_one: UdpUpdateClient<Request, Update, Response> = UdpUpdateClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+        ).unwrap();
+
+        let mut client_two: UdpUpdateClient<Request, Update, Response> = UdpUpdateClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+        ).unwrap();
+
+        let client_one_request = Request::new();
+        let client_one_update = Update::new(client_one_request.clone());
+        let client_one_response = Response::new(client_one_request.clone());
+        let client_two_request = Request::new();
+        let client_two_update = Update::new(client_two_request.clone());
+        let client_two_response = Response::new(client_two_request.clone());
+
+        client_one.send_request(client_one_request).unwrap();
+        client_two.send_request(client_two_request).unwrap();
+
+        sleep(Duration::from_millis(50));
+
+        for request in server.poll_for_requests() {
+            if let Ok(request) = request {
+                match request.0 {
+                    0 => assert_eq!(request.1, client_one_request),
+                    _ => assert_eq!(request.1, client_two_request),
+                }
+                server.send_update(request.0, &request.1, Update::new(request.1.clone())).unwrap();
+                server.send_response(request.0, request.1, Response::new(request.1.clone())).unwrap();
+            }
+        }
+
+        sleep(Duration::from_millis(50));
+
+        let updates = client_one.poll_for_updates();
+        assert_eq!(updates.len(), 1);
+        for update in updates {
+            assert!(update.is_ok());
+            let update = update.unwrap();
+            assert_eq!(update.0, client_one_request);
+            assert_eq!(update.1, client_one_update);
+        }
+        let responses = client_one.poll_for_responses();
+        assert_eq!(responses.len(), 1);
+        for response in responses {
+            assert!(response.is_ok());
+            let response = response.unwrap();
+            assert_eq!(response.0, client_one_request);
+            assert_eq!(response.1, client_one_response);
+        }
+
+        let updates = client_two.poll_for_updates();
+        assert_eq!(updates.len(), 1);
+        for update in updates {
+            assert!(update.is_ok());
+            let update = update.unwrap();
+            assert_eq!(update.0, client_two_request);
+            assert_eq!(update.1, client_two_update);
+        }
+        let responses = client_two.poll_for_responses();
+        assert_eq!(responses.len(), 1);
+        for response in responses {
+            assert!(response.is_ok());
+            let response = response.unwrap();
+            assert_eq!(response.0, client_two_request);
+            assert_eq!(response.1, client_two_response);
+        }
+    }
 }
