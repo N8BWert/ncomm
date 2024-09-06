@@ -171,6 +171,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ncomm"
+version = "1.0.0"
+dependencies = [
+ "ncomm-clients-and-servers",
+ "ncomm-core",
+ "ncomm-executors",
+ "ncomm-nodes",
+ "ncomm-publishers-and-subscribers",
+ "ncomm-update-clients-and-servers",
+ "ncomm-utils",
+]
+
+[[package]]
 name = "ncomm-clients-and-servers"
 version = "1.0.0"
 dependencies = [
@@ -193,6 +206,10 @@ dependencies = [
  "quanta",
  "threadpool",
 ]
+
+[[package]]
+name = "ncomm-nodes"
+version = "1.0.0"
 
 [[package]]
 name = "ncomm-publishers-and-subscribers"

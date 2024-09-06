@@ -2,4 +2,4 @@
 
 ## Description
 
-NComm core is a collection of traits that define common types used by the ncomm robotics framework.
+NComm core is a collection of traits that define common types used by the NComm robotics framework.

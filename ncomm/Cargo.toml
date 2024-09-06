@@ -1,0 +1,21 @@
+[package]
+name = "ncomm"
+description = "NComm Robotics Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+categories.workspace = true
+
+[dependencies]
+ncomm-core = { workspace = true }
+ncomm-utils = { workspace = true }
+ncomm-executors = { workspace = true }
+ncomm-publishers-and-subscribers = { workspace = true }
+ncomm-clients-and-servers = { workspace = true }
+ncomm-update-clients-and-servers = { workspace = true }
+ncomm-nodes = { workspace = true }

@@ -70,7 +70,7 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
     /// Check the UDP socket for incoming Datagrams.
     /// 
     /// Note: Incoming data will be in the form:
-    /// [request[0], request[1], ..., request[-1], response[0], response[1], ...]
+    /// \[request\[0\], request\[1\], ..., request\[-1\], response\[0\], response\[1\], ...\]
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
         let mut responses = Vec::new();
 
