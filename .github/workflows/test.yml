@@ -2,10 +2,89 @@ name: Unit Testing
 run-name: Unit Testing
 on: [push]
 jobs:
-    Rust-Unit-Tests:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Check out repository code
-              uses: actions/checkout@v3
-            - name: "test local rust"
-              uses: Kristories/cargo-test@v1.0.0
+  Cargo-Check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run Cargo Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
+  
+  Cargo-Test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run Cargo Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-targets
+
+  Cargo-Clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - name: Run Cargo Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+
+  Cargo-Rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Check Formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --check
+  
+  Cargo-Check-Examples:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+      - name: cd minimal-client-server
+        command: cd "$GITHUB_WORKSPACE/examples/minimal-client-server"
+      - name: Cargo Check Minimal Client Server Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: cd minimal-publisher-subscriber
+        command: cd "$GITHUB_WORKSPACE/examples/minimal-publisher-subscriber"
+      - name: Cargo Check Minimal Publisher Subscriber Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: cd minimal-update-client-server
+        command: cd "$GITHUB_WORKSPACE/examples/minimal-update-client-server"
+      - name: Cargo Check Minimal Update Client Server Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: check

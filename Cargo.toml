@@ -26,7 +26,6 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-name = "ncomm"
 version = "1.0.0"
 edition = "2021"
 license = "MIT"
