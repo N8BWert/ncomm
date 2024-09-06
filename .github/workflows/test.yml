@@ -71,19 +71,19 @@ jobs:
       - name: Setup Toolchain
         uses: actions-rs/toolchain@v1
       - name: cd minimal-client-server
-        command: cd "$GITHUB_WORKSPACE/examples/minimal-client-server"
+        run: cd "$GITHUB_WORKSPACE/examples/minimal-client-server"
       - name: Cargo Check Minimal Client Server Example
         uses: actions-rs/cargo@v1
         with:
           command: check
       - name: cd minimal-publisher-subscriber
-        command: cd "$GITHUB_WORKSPACE/examples/minimal-publisher-subscriber"
+        run: cd "$GITHUB_WORKSPACE/examples/minimal-publisher-subscriber"
       - name: Cargo Check Minimal Publisher Subscriber Example
         uses: actions-rs/cargo@v1
         with:
           command: check
       - name: cd minimal-update-client-server
-        command: cd "$GITHUB_WORKSPACE/examples/minimal-update-client-server"
+        run: cd "$GITHUB_WORKSPACE/examples/minimal-update-client-server"
       - name: Cargo Check Minimal Update Client Server Example
         uses: actions-rs/cargo@v1
         with:
