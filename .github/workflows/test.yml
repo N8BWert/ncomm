@@ -10,7 +10,7 @@ jobs:
       - name: Setup toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
       - name: Run Cargo Check
         uses: actions-rs/cargo@v1
         with:
@@ -25,7 +25,7 @@ jobs:
       - name: Setup Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
       - name: Run Cargo Test
         uses: actions-rs/cargo@v1
         with:
@@ -70,6 +70,8 @@ jobs:
         uses: actions/checkout@v3
       - name: Setup Toolchain
         uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: cd minimal-client-server
         run: cd "$GITHUB_WORKSPACE/examples/minimal-client-server"
       - name: Cargo Check Minimal Client Server Example
