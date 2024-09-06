@@ -1,9 +1,9 @@
 //!
 //! A Simple Update Client Example that sends a request for the nth term in the
 //! fibonacci series.
-//! 
+//!
 
-use super::{FibonacciRequest, FibonacciUpdate, FibonacciResponse};
+use super::{FibonacciRequest, FibonacciResponse, FibonacciUpdate};
 
 use ncomm_core::{Node, UpdateClient};
 use ncomm_update_clients_and_servers::local::LocalUpdateClient;
@@ -17,10 +17,10 @@ pub struct FibonacciUpdateClient {
 
 impl FibonacciUpdateClient {
     /// Create a new Fibonacci Update Client
-    pub fn new(update_client: LocalUpdateClient<FibonacciRequest, FibonacciUpdate, FibonacciResponse>) -> Self {
-        Self {
-            update_client,
-        }
+    pub fn new(
+        update_client: LocalUpdateClient<FibonacciRequest, FibonacciUpdate, FibonacciResponse>,
+    ) -> Self {
+        Self { update_client }
     }
 
     /// Print the update messages received
@@ -28,7 +28,10 @@ impl FibonacciUpdateClient {
         let updates = self.update_client.poll_for_updates();
         for update in updates.iter() {
             if let Ok((_request, update)) = update {
-                println!("Last Num: {} --- Current Num: {}", update.last_num, update.current_num);
+                println!(
+                    "Last Num: {} --- Current Num: {}",
+                    update.last_num, update.current_num
+                );
             }
         }
     }
@@ -52,7 +55,9 @@ impl Node for FibonacciUpdateClient {
     }
 
     fn start(&mut self) {
-        self.update_client.send_request(FibonacciRequest { order: 10 }).unwrap();
+        self.update_client
+            .send_request(FibonacciRequest { order: 10 })
+            .unwrap();
     }
 
     fn update(&mut self) {

@@ -1,18 +1,17 @@
 //!
 //! NComm-Executors provides a set of executors (kind of like schedulers)
 //! for nodes.
-//! 
+//!
 //! The main idea with this create is to make executing nodes fit the specific
 //! use case.  Specifically, there may be times when a Threadpooled model works
 //! best or another use case where a Green-threaded Tokio implementation works best.
-//! 
+//!
 //! Ideally, this crate should contain all of the commonly used executors that
 //! conform to the common ncomm-core traits to make creating robotics systems
 //! as easy and pain-free as possible.
-//! 
+//!
 
 #![deny(missing_docs)]
-
 // To test the internal state of nodes, they need to be force
 // downcasted into their respective type.
 #![cfg_attr(test, feature(downcast_unchecked))]
@@ -23,12 +22,12 @@ pub use simple_executor::SimpleExecutor;
 pub mod threadpool_executor;
 pub use threadpool_executor::ThreadPoolExecutor;
 
-use std::cmp::{Ord, Ordering};
 use ncomm_core::node::Node;
+use std::cmp::{Ord, Ordering};
 
 /// The NodeWrapper wraps nodes giving them a priority based on the timestamp
 /// of their next update.
-/// 
+///
 /// This ensures that nodes are updated at the correct time
 pub(crate) struct NodeWrapper {
     /// The timestamp of the nodes next update
@@ -59,7 +58,7 @@ impl Eq for NodeWrapper {}
 
 /// This method performs binary search insertion into the sorted vector
 /// `vec` with the node `node`.
-/// 
+///
 /// This is just a convenience method I found myself using a ton so I decided
 /// to make it its own method.
 #[inline(always)]

@@ -1,10 +1,10 @@
 //!
 //! NComm Update Server and Client.
-//! 
+//!
 //! An Update Client and Server is pretty much the same as an action client in
 //! ROS in which a server is given some long running task that they routinely
 //! update the client on.
-//! 
+//!
 
 /// A common abstraction for all NComm update clients
 pub trait UpdateClient {
@@ -50,20 +50,42 @@ pub trait UpdateServer {
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;
 
     /// Send an update to a specific client
-    fn send_update(&mut self, client_key: Self::Key, request: &Self::Request, update: Self::Update) -> Result<(), Self::Error>;
+    fn send_update(
+        &mut self,
+        client_key: Self::Key,
+        request: &Self::Request,
+        update: Self::Update,
+    ) -> Result<(), Self::Error>;
 
     /// Send a collection of updates to specified client
     #[allow(clippy::type_complexity)]
-    fn send_updates(&mut self, mut updates: Vec<(Self::Key, &Self::Request, Self::Update)>) -> Vec<Result<(), Self::Error>> {
-        updates.drain(..).map(|update| self.send_update(update.0, update.1, update.2)).collect()
+    fn send_updates(
+        &mut self,
+        mut updates: Vec<(Self::Key, &Self::Request, Self::Update)>,
+    ) -> Vec<Result<(), Self::Error>> {
+        updates
+            .drain(..)
+            .map(|update| self.send_update(update.0, update.1, update.2))
+            .collect()
     }
 
     /// Send a response to a specific client
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error>;
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error>;
 
     /// Send a collection of responses to specific clients
     #[allow(clippy::type_complexity)]
-    fn send_responses(&mut self, mut responses: Vec<(Self::Key, Self::Request, Self::Response)>) -> Vec<Result<(), Self::Error>> {
-        responses.drain(..).map(|response| self.send_response(response.0, response.1, response.2)).collect()
+    fn send_responses(
+        &mut self,
+        mut responses: Vec<(Self::Key, Self::Request, Self::Response)>,
+    ) -> Vec<Result<(), Self::Error>> {
+        responses
+            .drain(..)
+            .map(|response| self.send_response(response.0, response.1, response.2))
+            .collect()
     }
 }

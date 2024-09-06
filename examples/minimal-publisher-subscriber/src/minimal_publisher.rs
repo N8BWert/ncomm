@@ -1,7 +1,7 @@
 //!
 //! The minimal publisher keeps track of a count and publishes
 //! the message "Hello, World! {count}" to the subscriber.
-//! 
+//!
 
 use ncomm_core::{Node, Publisher};
 use ncomm_publishers_and_subscribers::local::{LocalPublisher, LocalSubscriber};

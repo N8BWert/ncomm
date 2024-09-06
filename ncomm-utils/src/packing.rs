@@ -1,9 +1,9 @@
 //!
 //! Utility Packing and Unpacking Methods Necessary for Data
 //! Sent over Some Network.
-//! 
+//!
 
-/// An error from attempting to pack data into a buffer or from 
+/// An error from attempting to pack data into a buffer or from
 /// attempting to unpack data from a slice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PackingError {
@@ -19,7 +19,7 @@ pub trait Packable: Sized {
     fn len() -> usize;
 
     /// Pack a given piece of data into a given buffer.
-    /// 
+    ///
     /// Note: this format of pack was utilized to make this trait
     /// compatible with both std and no_std targets (specifically
     /// for no_std targets without `alloc`)

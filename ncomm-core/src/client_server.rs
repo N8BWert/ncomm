@@ -1,9 +1,9 @@
 //!
 //! NComm Client Server Traits.
-//! 
+//!
 //! Servers should be a single unique entity that can have multiple clients
 //! that request something from them (in the form of a request).
-//! 
+//!
 
 /// A common abstraction for all NComm clients to allow for the creation
 /// of a common method of sending requests and receiving responses.
@@ -34,7 +34,7 @@ pub trait Server {
     type Response;
     /// The unique identifier type for the various clients
     type Key;
-    /// The type of error from sending or receiving data from 
+    /// The type of error from sending or receiving data from
     /// the client
     type Error;
 
@@ -43,10 +43,21 @@ pub trait Server {
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;
 
     /// Send a response to a specific client
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error>;
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error>;
 
     /// Send a collection of responses to specified clients
-    fn send_responses(&mut self, mut responses: Vec<(Self::Key, Self::Request, Self::Response)>) -> Vec<Result<(), Self::Error>> {
-        responses.drain(..).map(|response| self.send_response(response.0, response.1, response.2)).collect()
+    fn send_responses(
+        &mut self,
+        mut responses: Vec<(Self::Key, Self::Request, Self::Response)>,
+    ) -> Vec<Result<(), Self::Error>> {
+        responses
+            .drain(..)
+            .map(|response| self.send_response(response.0, response.1, response.2))
+            .collect()
     }
 }

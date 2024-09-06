@@ -1,18 +1,14 @@
 //!
 //! Local Clients and Servers
-//! 
+//!
 //! Local Clients and Servers utilize crossbeam channels
 //! to send requests from clients to servers and from responses
 //! from servers to clients.
 //!
 
-use std::{
-    collections::HashMap,
-    convert::Infallible,
-    hash::Hash
-};
+use std::{collections::HashMap, convert::Infallible, hash::Hash};
 
-use crossbeam::channel::{self, Sender, Receiver};
+use crossbeam::channel::{self, Receiver, Sender};
 
 use ncomm_core::{Client, Server};
 
@@ -74,7 +70,7 @@ impl<Req, Res, K: Hash + Eq + Clone> LocalServer<Req, Res, K> {
         self.client_map.insert(key, (req_rx, res_tx));
         LocalClient {
             rx: res_rx,
-            tx: req_tx
+            tx: req_tx,
         }
     }
 }
@@ -95,9 +91,14 @@ impl<Req, Res, K: Hash + Eq + Clone> Server for LocalServer<Req, Res, K> {
         requests
     }
 
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error> {
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error> {
         if let Some((_, tx)) = self.client_map.get(&client_key) {
-            tx.send((request ,response)).unwrap();
+            tx.send((request, response)).unwrap();
         }
         Ok(())
     }
@@ -115,11 +116,9 @@ mod tests {
     }
 
     impl Request {
-       pub fn new() -> Self {
-        Self {
-            num: random(),
+        pub fn new() -> Self {
+            Self { num: random() }
         }
-       } 
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -146,7 +145,9 @@ mod tests {
         for request in server.poll_for_requests() {
             let Ok((client, request)) = request;
             assert_eq!(request, original_request);
-            server.send_response(client, request, Response::new(request.clone())).unwrap();
+            server
+                .send_response(client, request, Response::new(request.clone()))
+                .unwrap();
         }
         for response in client.poll_for_responses() {
             let Ok((request, response)) = response;

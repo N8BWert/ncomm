@@ -1,16 +1,16 @@
 //!
 //! Udp Datagram Update Clients and Servers
-//! 
+//!
 //! Udp Update Clients and Servers utilize Udp Datagrams to send requests
 //! to clients for longrunning operations.  The servers are then responsible
 //! for sending back periodic updates on the status of requests before
 //! eventually sending responses back to the client.
-//! 
+//!
 
 use std::{
-    net::{SocketAddr, UdpSocket},
-    marker::PhantomData,
     io::Error,
+    marker::PhantomData,
+    net::{SocketAddr, UdpSocket},
 };
 
 use ncomm_core::{UpdateClient, UpdateServer};
@@ -31,7 +31,7 @@ pub enum UdpUpdateClientServerError<Data: Packable> {
 
 /// A Udp update client that sends request via a UdpSocket to a specific IP, receives
 /// periodic updates, and finally receives a response via a bound UdpSocket
-/// 
+///
 /// Note: If Update and Response Packets are the same length, there is a chance
 /// that when polling for updates a response will be received and processed.
 /// This is, obviously, suboptimal and I will fix this in a later version but
@@ -50,7 +50,7 @@ pub struct UdpUpdateClient<Req: Packable, Updt: Packable, Res: Packable> {
     _phantom: PhantomData<(Req, Updt, Res)>,
 }
 
-impl<Req: Packable, Updt: Packable, Res: Packable,> UdpUpdateClient<Req, Updt, Res> {
+impl<Req: Packable, Updt: Packable, Res: Packable> UdpUpdateClient<Req, Updt, Res> {
     /// Create a new Udp Update Client
     pub fn new(bind_address: SocketAddr, server_address: SocketAddr) -> Result<Self, Error> {
         let socket = UdpSocket::bind(bind_address)?;
@@ -66,8 +66,9 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UdpUpdateClient<Req, Updt, R
     }
 }
 
-impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
-    for UdpUpdateClient<Req, Updt, Res> {
+impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
+    for UdpUpdateClient<Req, Updt, Res>
+{
     type Request = Req;
     type Update = Updt;
     type Response = Res;
@@ -75,9 +76,13 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
 
     fn send_request(&mut self, request: Self::Request) -> Result<(), Self::Error> {
         let mut buffer = vec![0u8; Req::len()];
-        request.pack(&mut buffer).map_err(UdpUpdateClientServerError::PackingError)?;
+        request
+            .pack(&mut buffer)
+            .map_err(UdpUpdateClientServerError::PackingError)?;
 
-        self.socket.send_to(&buffer, self.address).map_err(UdpUpdateClientServerError::IOError)?;
+        self.socket
+            .send_to(&buffer, self.address)
+            .map_err(UdpUpdateClientServerError::IOError)?;
         Ok(())
     }
 
@@ -110,7 +115,7 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                             Err(PackingError::InvalidBufferSize),
                         )
                     }
-                },
+                }
                 Err(_) => break,
             };
 
@@ -151,7 +156,7 @@ impl<Req: Packable, Updt: Packable, Res: Packable,> UpdateClient
                             Err(PackingError::InvalidBufferSize),
                         )
                     }
-                },
+                }
                 Err(_) => break,
             };
 
@@ -175,7 +180,9 @@ pub struct UdpUpdateServer<Req: Packable + Clone, Updt: Packable, Res: Packable,
     _phantom: PhantomData<(Req, Updt, Res)>,
 }
 
-impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UdpUpdateServer<Req, Updt, Res, K> {
+impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone>
+    UdpUpdateServer<Req, Updt, Res, K>
+{
     /// Create a new Udp Update Server
     pub fn new(bind_address: SocketAddr) -> Result<Self, Error> {
         let socket = UdpSocket::bind(bind_address)?;
@@ -183,12 +190,15 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UdpUpd
         Ok(Self {
             socket,
             client_addresses: Vec::new(),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         })
     }
 
     /// Create a new Udp Update Server with a list of clients and addresses
-    pub fn new_with(bind_address: SocketAddr, clients: Vec<(K, SocketAddr)>) -> Result<Self, Error> {
+    pub fn new_with(
+        bind_address: SocketAddr,
+        clients: Vec<(K, SocketAddr)>,
+    ) -> Result<Self, Error> {
         let socket = UdpSocket::bind(bind_address)?;
         socket.set_nonblocking(true)?;
         Ok(Self {
@@ -204,7 +214,9 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UdpUpd
     }
 }
 
-impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UpdateServer for UdpUpdateServer<Req, Updt, Res, K> {
+impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> UpdateServer
+    for UdpUpdateServer<Req, Updt, Res, K>
+{
     type Request = Req;
     type Update = Updt;
     type Response = Res;
@@ -226,9 +238,11 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
                     if let Some((k, _)) = self.client_addresses.iter().find(|v| v.1 == address) {
                         requests.push(Ok((k.clone(), data)));
                     } else {
-                        requests.push(Err(UdpUpdateClientServerError::UnknownRequester((data, address))));
+                        requests.push(Err(UdpUpdateClientServerError::UnknownRequester((
+                            data, address,
+                        ))));
                     }
-                },
+                }
                 Err(err) => requests.push(Err(UdpUpdateClientServerError::PackingError(err))),
             }
         }
@@ -236,41 +250,68 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
         requests
     }
 
-    fn send_update(&mut self, client_key: Self::Key, request: &Self::Request, update: Self::Update) -> Result<(), Self::Error> {
+    fn send_update(
+        &mut self,
+        client_key: Self::Key,
+        request: &Self::Request,
+        update: Self::Update,
+    ) -> Result<(), Self::Error> {
         if let Some((_, address)) = self.client_addresses.iter().find(|v| v.0 == client_key) {
             let mut buffer = vec![0u8; Req::len() + Updt::len()];
 
-            request.clone().pack(&mut buffer[0..Req::len()]).map_err(UdpUpdateClientServerError::PackingError)?;
-            update.pack(&mut buffer[Req::len()..]).map_err(UdpUpdateClientServerError::PackingError)?;
+            request
+                .clone()
+                .pack(&mut buffer[0..Req::len()])
+                .map_err(UdpUpdateClientServerError::PackingError)?;
+            update
+                .pack(&mut buffer[Req::len()..])
+                .map_err(UdpUpdateClientServerError::PackingError)?;
 
-            self.socket.send_to(&buffer, address).map_err(UdpUpdateClientServerError::IOError)?;
+            self.socket
+                .send_to(&buffer, address)
+                .map_err(UdpUpdateClientServerError::IOError)?;
             Ok(())
         } else {
             Err(UdpUpdateClientServerError::UnknownClient)
         }
     }
 
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error> {
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error> {
         if let Some((_, address)) = self.client_addresses.iter().find(|v| v.0 == client_key) {
             let mut buffer = vec![0u8; Req::len() + Res::len()];
 
-            request.clone().pack(&mut buffer[0..Req::len()]).map_err(UdpUpdateClientServerError::PackingError)?;
-            response.pack(&mut buffer[Req::len()..]).map_err(UdpUpdateClientServerError::PackingError)?;
+            request
+                .clone()
+                .pack(&mut buffer[0..Req::len()])
+                .map_err(UdpUpdateClientServerError::PackingError)?;
+            response
+                .pack(&mut buffer[Req::len()..])
+                .map_err(UdpUpdateClientServerError::PackingError)?;
 
-            self.socket.send_to(&buffer, address).map_err(UdpUpdateClientServerError::IOError)?;
+            self.socket
+                .send_to(&buffer, address)
+                .map_err(UdpUpdateClientServerError::IOError)?;
             Ok(())
         } else {
             Err(UdpUpdateClientServerError::UnknownClient)
         }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
+    use std::{
+        net::{Ipv4Addr, SocketAddrV4},
+        thread::sleep,
+        time::Duration,
+    };
 
     use rand::random;
 
@@ -281,9 +322,7 @@ mod tests {
 
     impl Request {
         pub fn new() -> Self {
-            Self {
-                num: random(),
-            }
+            Self { num: random() }
         }
     }
 
@@ -304,7 +343,9 @@ mod tests {
             if data.len() < 8 {
                 Err(PackingError::InvalidBufferSize)
             } else {
-                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+                Ok(Self {
+                    num: u64::from_le_bytes(data[..8].try_into().unwrap()),
+                })
             }
         }
     }
@@ -339,11 +380,13 @@ mod tests {
             if data.len() < 16 {
                 Err(PackingError::InvalidBufferSize)
             } else {
-                Ok(Self { num: u128::from_le_bytes(data[..16].try_into().unwrap())})
+                Ok(Self {
+                    num: u128::from_le_bytes(data[..16].try_into().unwrap()),
+                })
             }
         }
     }
-    
+
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct Response {
         num: u64,
@@ -374,30 +417,42 @@ mod tests {
             if data.len() < 8 {
                 Err(PackingError::InvalidBufferSize)
             } else {
-                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+                Ok(Self {
+                    num: u64::from_le_bytes(data[..8].try_into().unwrap()),
+                })
             }
         }
     }
 
     #[test]
     fn test_udp_update_client_server() {
-        let mut server: UdpUpdateServer<Request, Update, Response, i32> = UdpUpdateServer::new_with(
-            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
-            vec![
-                (0, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001))),
-                (1, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002))),
-            ]
-        ).unwrap();
+        let mut server: UdpUpdateServer<Request, Update, Response, i32> =
+            UdpUpdateServer::new_with(
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
+                vec![
+                    (
+                        0,
+                        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
+                    ),
+                    (
+                        1,
+                        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
+                    ),
+                ],
+            )
+            .unwrap();
 
         let mut client_one: UdpUpdateClient<Request, Update, Response> = UdpUpdateClient::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut client_two: UdpUpdateClient<Request, Update, Response> = UdpUpdateClient::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
-        ).unwrap();
+        )
+        .unwrap();
 
         let client_one_request = Request::new();
         let client_one_update = Update::new(client_one_request.clone());
@@ -417,8 +472,12 @@ mod tests {
                     0 => assert_eq!(request.1, client_one_request),
                     _ => assert_eq!(request.1, client_two_request),
                 }
-                server.send_update(request.0, &request.1, Update::new(request.1.clone())).unwrap();
-                server.send_response(request.0, request.1, Response::new(request.1.clone())).unwrap();
+                server
+                    .send_update(request.0, &request.1, Update::new(request.1.clone()))
+                    .unwrap();
+                server
+                    .send_response(request.0, request.1, Response::new(request.1.clone()))
+                    .unwrap();
             }
         }
 

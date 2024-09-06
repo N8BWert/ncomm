@@ -1,14 +1,13 @@
 //!
-//! This example shows a minimal client and server based on the 
+//! This example shows a minimal client and server based on the
 //! [Ros 2 Foxy Tutorial]()
-//! 
+//!
 //! The premise of this example is that the client requests the server to
 //! add two integers together and the server responds with the sum of the
 //! two incoming integers.
-//! 
+//!
 
 #[deny(missing_docs)]
-
 use ncomm_core::Executor;
 use ncomm_executors::SimpleExecutor;
 
@@ -35,21 +34,14 @@ pub struct AddTwoIntsResponse {
 
 fn main() {
     let mut server_node = MinimalServer::new();
-    let client_node = MinimalClient::new(
-        server_node.create_client(String::from("Minimal Client")),
-    );
+    let client_node = MinimalClient::new(server_node.create_client(String::from("Minimal Client")));
 
     let (tx, rx) = unbounded();
     ctrlc::set_handler(move || tx.send(true).expect("Could not send data"))
         .expect("Error setting Ctrl-C handler");
 
-    let mut executor = SimpleExecutor::new_with(
-        rx,
-        vec![
-            Box::new(client_node),
-            Box::new(server_node),
-        ]
-    );
+    let mut executor =
+        SimpleExecutor::new_with(rx, vec![Box::new(client_node), Box::new(server_node)]);
 
     executor.update_loop();
 }

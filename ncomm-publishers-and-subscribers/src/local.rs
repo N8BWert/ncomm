@@ -1,19 +1,19 @@
 //!
 //! Local Publishers and Subscribers
-//! 
+//!
 //! Local Publishers and Subscribers utilize some combination of
 //! primitives from the standard library to enable the sharing of
 //! data between publishers and subscribers
-//! 
+//!
 
 use std::{
     collections::HashMap,
     hash::Hash,
     sync::{Arc, Mutex},
-    time::{Duration, Instant}
+    time::{Duration, Instant},
 };
 
-use crossbeam::channel::{self, Sender, Receiver, SendError};
+use crossbeam::channel::{self, Receiver, SendError, Sender};
 
 use ncomm_core::{Publisher, Subscriber};
 
@@ -84,7 +84,9 @@ impl<Data: Clone> Subscriber for LocalTTLSubscriber<Data> {
             self.data = Some((data, Instant::now()));
         }
 
-        if self.data.is_some() && Instant::now().duration_since(self.data.as_ref().unwrap().1) > self.ttl {
+        if self.data.is_some()
+            && Instant::now().duration_since(self.data.as_ref().unwrap().1) > self.ttl
+        {
             self.data = None;
         }
 
@@ -103,7 +105,9 @@ pub struct LocalMappedSubscriber<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> {
     hash: F,
 }
 
-impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for LocalMappedSubscriber<Data, K, F> {
+impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber
+    for LocalMappedSubscriber<Data, K, F>
+{
     type Target = HashMap<K, Data>;
 
     fn get(&mut self) -> &Self::Target {
@@ -130,7 +134,9 @@ pub struct LocalMappedTTLSubscriber<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K
     ttl: Duration,
 }
 
-impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber for LocalMappedTTLSubscriber<Data, K, F> {
+impl<Data: Clone, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber
+    for LocalMappedTTLSubscriber<Data, K, F>
+{
     type Target = HashMap<K, (Data, Instant)>;
 
     fn get(&mut self) -> &Self::Target {
@@ -160,7 +166,7 @@ impl<Data: Clone> Default for LocalPublisher<Data> {
     fn default() -> Self {
         Self {
             txs: Arc::new(Mutex::new(Vec::new())),
-            data: Arc::new(Mutex::new(None))
+            data: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -177,12 +183,14 @@ impl<Data: Clone> LocalPublisher<Data> {
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
 
-        let data = self.data.lock().unwrap().as_ref().map(|data| data.0.clone());
+        let data = self
+            .data
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|data| data.0.clone());
 
-        LocalSubscriber {
-            rx,
-            data,
-        }
+        LocalSubscriber { rx, data }
     }
 
     /// Create a local buffered subscriber
@@ -196,10 +204,7 @@ impl<Data: Clone> LocalPublisher<Data> {
             buffer.push(data.0.clone());
         }
 
-        LocalBufferedSubscriber {
-            rx,
-            buffer,
-        }
+        LocalBufferedSubscriber { rx, buffer }
     }
 
     /// Create a local subscriber with a specific time-to-live of pieces of data
@@ -209,7 +214,13 @@ impl<Data: Clone> LocalPublisher<Data> {
         txs.push(tx);
 
         let data = match self.data.lock().unwrap().as_ref() {
-            Some(data) => if Instant::now().duration_since(data.1) > timeout { Some(data.clone()) } else { None },
+            Some(data) => {
+                if Instant::now().duration_since(data.1) > timeout {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            }
             None => None,
         };
 
@@ -221,10 +232,13 @@ impl<Data: Clone> LocalPublisher<Data> {
     }
 
     /// Create a local subscriber that uses a map function to map data to specific slots in a hashmap.
-    /// 
+    ///
     /// Note: This subscriber will only have access to them most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    pub fn subscribe_mapped<K: Eq + Hash, F: Fn(&Data) -> K>(&mut self, map: F) -> LocalMappedSubscriber<Data, K, F> {
+    pub fn subscribe_mapped<K: Eq + Hash, F: Fn(&Data) -> K>(
+        &mut self,
+        map: F,
+    ) -> LocalMappedSubscriber<Data, K, F> {
         let mut txs = self.txs.lock().unwrap();
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
@@ -245,10 +259,14 @@ impl<Data: Clone> LocalPublisher<Data> {
 
     /// Create a local subscriber that uses a map function to map data to specific slots
     /// in a hashmap
-    /// 
+    ///
     /// Note: This subscriber will only have access to the most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    pub fn subscribe_mapped_ttl<K: Eq + Hash, F: Fn(&Data) -> K>(&mut self, map: F, ttl: Duration) -> LocalMappedTTLSubscriber<Data, K, F> {
+    pub fn subscribe_mapped_ttl<K: Eq + Hash, F: Fn(&Data) -> K>(
+        &mut self,
+        map: F,
+        ttl: Duration,
+    ) -> LocalMappedTTLSubscriber<Data, K, F> {
         let mut txs = self.txs.lock().unwrap();
         let (tx, rx) = channel::unbounded();
         txs.push(tx);
@@ -308,9 +326,7 @@ mod tests {
 
     impl TestData {
         pub fn new() -> Self {
-            Self {
-                num: random(),
-            }
+            Self { num: random() }
         }
     }
 
@@ -356,7 +372,7 @@ mod tests {
     #[test]
     fn test_publish_mapped_subscriber() {
         let mut publisher = LocalPublisher::new();
-        let mut subscriber = publisher.subscribe_mapped(|data: &TestData| { data.num });
+        let mut subscriber = publisher.subscribe_mapped(|data: &TestData| data.num);
 
         let data = TestData::new();
         publisher.publish(data.clone()).unwrap();
@@ -367,14 +383,10 @@ mod tests {
     #[test]
     fn test_publish_mapped_ttl_subscriber() {
         let mut publisher = LocalPublisher::new();
-        let mut short_subscriber = publisher.subscribe_mapped_ttl(
-            |data: &TestData| data.num,
-            Duration::from_nanos(1)
-        );
-        let mut long_subscriber = publisher.subscribe_mapped_ttl(
-            |data: &TestData| data.num,
-            Duration::from_secs(5)
-        );
+        let mut short_subscriber =
+            publisher.subscribe_mapped_ttl(|data: &TestData| data.num, Duration::from_nanos(1));
+        let mut long_subscriber =
+            publisher.subscribe_mapped_ttl(|data: &TestData| data.num, Duration::from_secs(5));
 
         let data = TestData::new();
         publisher.publish(data.clone()).unwrap();

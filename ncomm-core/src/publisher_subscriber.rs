@@ -1,10 +1,10 @@
 //!
 //! Publisher -> Subscriber Communication
-//! 
+//!
 //! Publishers should push data to some endpoint or location
-//! so that subscribers can read the data published by the 
+//! so that subscribers can read the data published by the
 //! publishers.
-//! 
+//!
 
 /// The basic publisher trait that enables the publishing of data
 /// to some endpoint for subscribers to read.
@@ -20,7 +20,7 @@ pub trait Publisher {
 
 /// The basic subscriber trait that enables for the reading of data
 /// from some endpoint.
-/// 
+///
 /// Note: For convenience sake, Subscriber is actually just an alias for the
 /// Deref trait
 pub trait Subscriber {

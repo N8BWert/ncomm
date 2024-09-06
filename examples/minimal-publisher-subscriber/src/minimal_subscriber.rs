@@ -1,7 +1,7 @@
 //!
 //! Minimal Subscriber Node that receives the message "Hello World! {count}" from
 //! the publisher node.
-//! 
+//!
 
 use ncomm_core::{Node, Subscriber};
 use ncomm_publishers_and_subscribers::local::LocalSubscriber;
@@ -15,9 +15,7 @@ pub struct MinimalSubscriber {
 impl MinimalSubscriber {
     /// Creates a new MinimalSubscriber Node with a given subscriber
     pub fn new(subscriber: LocalSubscriber<String>) -> Self {
-        Self {
-            subscriber,
-        }
+        Self { subscriber }
     }
 
     /// Print "I heard: {data}" with the data published to it by the minimal

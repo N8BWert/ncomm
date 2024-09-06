@@ -1,18 +1,14 @@
 //!
 //! Local Update Clients and Servers
-//! 
+//!
 //! Local Update Clients and Servers utilize crossbeam channels
 //! to send requests from clients to servers, updates from servers to clients,
 //! and responses from servers to clients
-//! 
+//!
 
-use std::{
-    collections::HashMap,
-    convert::Infallible,
-    hash::Hash,
-};
+use std::{collections::HashMap, convert::Infallible, hash::Hash};
 
-use crossbeam::channel::{self, Sender, Receiver};
+use crossbeam::channel::{self, Receiver, Sender};
 
 use ncomm_core::{UpdateClient, UpdateServer};
 
@@ -92,7 +88,9 @@ impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> LocalUpdateServer<Req, Updt, R
     }
 }
 
-impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> UpdateServer for LocalUpdateServer<Req, Updt, Res, K> {
+impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> UpdateServer
+    for LocalUpdateServer<Req, Updt, Res, K>
+{
     type Request = Req;
     type Update = Updt;
     type Response = Res;
@@ -109,16 +107,26 @@ impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> UpdateServer for LocalUpdateSe
         requests
     }
 
-    fn send_update(&mut self, client_key: Self::Key, request: &Self::Request, update: Self::Update) -> Result<(), Self::Error> {
+    fn send_update(
+        &mut self,
+        client_key: Self::Key,
+        request: &Self::Request,
+        update: Self::Update,
+    ) -> Result<(), Self::Error> {
         if let Some((_, tx, _)) = self.client_map.get(&client_key) {
             tx.send((request.clone(), update)).unwrap();
         }
         Ok(())
     }
 
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error> {
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error> {
         if let Some((_, _, tx)) = self.client_map.get(&client_key) {
-            tx.send((request ,response)).unwrap();
+            tx.send((request, response)).unwrap();
         }
         Ok(())
     }
@@ -136,11 +144,9 @@ mod tests {
     }
 
     impl Request {
-       pub fn new() -> Self {
-        Self {
-            num: random(),
+        pub fn new() -> Self {
+            Self { num: random() }
         }
-       } 
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -179,12 +185,16 @@ mod tests {
         let original_response = Response::new(original_request.clone());
 
         client.send_request(original_request.clone()).unwrap();
-        
+
         for request in server.poll_for_requests() {
             let Ok((client, request)) = request;
             assert_eq!(request, original_request);
-            server.send_update(client, &request, Update::new(request.clone())).unwrap();
-            server.send_response(client, request, Response::new(request.clone())).unwrap();
+            server
+                .send_update(client, &request, Update::new(request.clone()))
+                .unwrap();
+            server
+                .send_response(client, request, Response::new(request.clone()))
+                .unwrap();
         }
 
         for update in client.poll_for_updates() {

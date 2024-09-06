@@ -1,7 +1,7 @@
 //!
 //! The Threadpool Executor takes control of a number of threads and schedules
 //! nodes to be run on a threadpool
-//! 
+//!
 
 use std::cmp::max;
 
@@ -9,21 +9,21 @@ use quanta::{Clock, Instant};
 
 use threadpool::ThreadPool;
 
-use crossbeam::channel::{Receiver, unbounded};
+use crossbeam::channel::{unbounded, Receiver};
 
 use ncomm_core::{Executor, ExecutorState, Node};
 
-use crate::{NodeWrapper, insert_into};
+use crate::{insert_into, NodeWrapper};
 
 /// ThreadPool Executor
-/// 
+///
 /// The ThreadPool Executor stores Nodes in a sorted vector and sends them to
 /// be executed by the threadPool.
-/// 
+///
 /// Note: The ThreadPool Executor ca be interrupted by sending a true value
 /// over the mpsc channel whose receiving end is owned by the ThreadPool
 /// executor.
-/// 
+///
 /// Addendum: The main thread of the ThreadPool is conducting the scheduling so
 /// the ThreadPool will only have n-1 worker threads where n is the total number
 /// of threads allocated to the threadpool executor.
@@ -63,7 +63,11 @@ impl ThreadPoolExecutor {
     }
 
     /// Creates a new ThreadPool Executor with a number of Nodes
-    pub fn new_with(threads: usize, interrupt: Receiver<bool>, mut nodes: Vec<Box<dyn Node>>) -> Self {
+    pub fn new_with(
+        threads: usize,
+        interrupt: Receiver<bool>,
+        mut nodes: Vec<Box<dyn Node>>,
+    ) -> Self {
         let mut backing = Vec::new();
         for node in nodes.drain(..) {
             backing.push(NodeWrapper { priority: 0, node });
@@ -88,7 +92,7 @@ impl ThreadPoolExecutor {
 impl Executor for ThreadPoolExecutor {
     /// For each node in the ThreadPool executor the node will be updated
     /// and start_instant will be set to the current instant
-    /// 
+    ///
     /// Note: this should probably not be called individually because it will
     /// always be called at the beginning of `update_for_ms` or `update_loop`
     fn start(&mut self) {
@@ -109,8 +113,22 @@ impl Executor for ThreadPoolExecutor {
         // Run the Executor
         self.state = ExecutorState::Running;
         let (node_tx, node_rx) = unbounded();
-        while self.clock.now().duration_since(self.start_instant).as_millis() < ms && !self.check_interrupt() {
-            if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+        while self
+            .clock
+            .now()
+            .duration_since(self.start_instant)
+            .as_millis()
+            < ms
+            && !self.check_interrupt()
+        {
+            if self.backing.last().is_some()
+                && self
+                    .clock
+                    .now()
+                    .duration_since(self.start_instant)
+                    .as_micros()
+                    >= self.backing.last().unwrap().priority
+            {
                 let mut node_wrapper = self.backing.pop().unwrap();
                 let node_tx = node_tx.clone();
                 self.pool.execute(move || {
@@ -141,7 +159,14 @@ impl Executor for ThreadPoolExecutor {
         self.state = ExecutorState::Running;
         let (node_tx, node_rx) = unbounded();
         while !self.check_interrupt() {
-            if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+            if self.backing.last().is_some()
+                && self
+                    .clock
+                    .now()
+                    .duration_since(self.start_instant)
+                    .as_micros()
+                    >= self.backing.last().unwrap().priority
+            {
                 let mut node_wrapper = self.backing.pop().unwrap();
                 let node_tx = node_tx.clone();
                 self.pool.execute(move || {
@@ -173,7 +198,7 @@ impl Executor for ThreadPoolExecutor {
     }
 
     /// Add a node to the ThreadPool Executor.
-    /// 
+    ///
     /// Note: If the executor is currently in `ExecutorState::Started` or
     /// `ExecutorState::Running` the node will be added with maximum
     /// priority to the backing vector.
@@ -184,9 +209,13 @@ impl Executor for ThreadPoolExecutor {
             insert_into(
                 &mut self.backing,
                 NodeWrapper {
-                    priority: self.clock.now().duration_since(self.start_instant).as_micros(),
+                    priority: self
+                        .clock
+                        .now()
+                        .duration_since(self.start_instant)
+                        .as_micros(),
                     node,
-                }
+                },
             );
         }
     }
@@ -196,7 +225,7 @@ impl Executor for ThreadPoolExecutor {
 mod tests {
     use super::*;
 
-    use std::{any::Any, time::Duration, thread};
+    use std::{any::Any, thread, time::Duration};
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     enum State {
@@ -250,22 +279,22 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
-       );
-       let original_start_instant = executor.start_instant;
+            ],
+        );
+        let original_start_instant = executor.start_instant;
 
-       executor.start();
+        executor.start();
 
-       for node_wrapper in executor.backing.iter() {
-        assert_eq!(node_wrapper.priority, 0);
-        let simple_node: &dyn Any = &node_wrapper.node;
-        let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
-        assert_eq!(simple_node.state, State::Started);
-       }
+        for node_wrapper in executor.backing.iter() {
+            assert_eq!(node_wrapper.priority, 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+            assert_eq!(simple_node.state, State::Started);
+        }
 
-       assert!(!executor.interrupted);
-       assert_eq!(executor.state, ExecutorState::Started);
-       assert!(executor.start_instant > original_start_instant);
+        assert!(!executor.interrupted);
+        assert_eq!(executor.state, ExecutorState::Started);
+        assert!(executor.start_instant > original_start_instant);
     }
 
     #[test]
@@ -278,24 +307,24 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
-       );
+            ],
+        );
 
-       let start = executor.clock.now();
-       executor.update_for_ms(100);
-       let end = executor.clock.now();
+        let start = executor.clock.now();
+        executor.update_for_ms(100);
+        let end = executor.clock.now();
 
-       // Check the nodes were started and updated
-       for node_wrapper in executor.backing.iter() {
-        assert_eq!(node_wrapper.priority, 0);
-        let simple_node: &dyn Any = &node_wrapper.node;
-        let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
-        assert_eq!(simple_node.state, State::Stopped);
-        assert!([3, 4, 5, 9, 10, 11].contains(&simple_node.num));
-       }
+        // Check the nodes were started and updated
+        for node_wrapper in executor.backing.iter() {
+            assert_eq!(node_wrapper.priority, 0);
+            let simple_node: &dyn Any = &node_wrapper.node;
+            let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
+            assert_eq!(simple_node.state, State::Stopped);
+            assert!([3, 4, 5, 9, 10, 11].contains(&simple_node.num));
+        }
 
-       assert!(Duration::from_millis(95) < end - start);
-       assert!(end - start < Duration::from_millis(105));
+        assert!(Duration::from_millis(95) < end - start);
+        assert!(end - start < Duration::from_millis(105));
     }
 
     #[test]
@@ -308,12 +337,12 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
-       );
+            ],
+        );
 
-       tx.send(true).unwrap();
+        tx.send(true).unwrap();
 
-       assert!(executor.check_interrupt());
+        assert!(executor.check_interrupt());
     }
 
     #[test]
@@ -326,12 +355,12 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
-       );
+            ],
+        );
 
-       executor.add_node(Box::new(SimpleNode::new(1_000)));
+        executor.add_node(Box::new(SimpleNode::new(1_000)));
 
-       assert_eq!(executor.backing.len(), 3);
+        assert_eq!(executor.backing.len(), 3);
     }
 
     #[test]
@@ -344,7 +373,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
+            ],
         );
 
         let handle = thread::spawn(move || {

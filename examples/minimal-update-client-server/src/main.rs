@@ -4,7 +4,7 @@
 //! the server responds with updates containing the last and current
 //! value in a fibonacci series before it finds the fibonacci value of
 //! given degree which is returned as a response
-//! 
+//!
 
 #![deny(missing_docs)]
 
@@ -47,7 +47,7 @@ pub struct FibonacciResponse {
 fn main() {
     let mut update_server_node = FibonacciUpdateServer::new();
     let update_client_node = FibonacciUpdateClient::new(
-        update_server_node.create_client(String::from("Fibonacci Update Client"))
+        update_server_node.create_client(String::from("Fibonacci Update Client")),
     );
 
     let (tx, rx) = unbounded();
@@ -56,10 +56,7 @@ fn main() {
 
     let mut executor = SimpleExecutor::new_with(
         rx,
-        vec![
-            Box::new(update_client_node),
-            Box::new(update_server_node),
-        ]
+        vec![Box::new(update_client_node), Box::new(update_server_node)],
     );
 
     executor.update_loop();

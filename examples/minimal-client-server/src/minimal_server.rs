@@ -1,12 +1,12 @@
 //!
 //! The Minimal Server responds to requests seeking to add two u64s with
 //! the wrapping sum of the two u64s.
-//! 
+//!
 
 use super::{AddTwoIntsRequest, AddTwoIntsResponse};
 
-use ncomm_core::{Node, Server};
 use ncomm_clients_and_servers::local::{LocalClient, LocalServer};
+use ncomm_core::{Node, Server};
 
 /// A minimal server node example that receives requests to add two ints and
 /// responds with the wrapping sum of the two integers.
@@ -23,7 +23,10 @@ impl MinimalServer {
     }
 
     /// Creates a client for the local server the node has
-    pub fn create_client(&mut self, client_name: String) -> LocalClient<AddTwoIntsRequest, AddTwoIntsResponse>{
+    pub fn create_client(
+        &mut self,
+        client_name: String,
+    ) -> LocalClient<AddTwoIntsRequest, AddTwoIntsResponse> {
         self.server.create_client(client_name)
     }
 
@@ -32,11 +35,15 @@ impl MinimalServer {
     fn handle_requests(&mut self) {
         for request in self.server.poll_for_requests() {
             let Ok((client_name, request)) = request;
-            self.server.send_response(
-                client_name,
-                request,
-                AddTwoIntsResponse { sum: request.a.wrapping_add(request.b) }
-            ).unwrap();
+            self.server
+                .send_response(
+                    client_name,
+                    request,
+                    AddTwoIntsResponse {
+                        sum: request.a.wrapping_add(request.b),
+                    },
+                )
+                .unwrap();
         }
     }
 }

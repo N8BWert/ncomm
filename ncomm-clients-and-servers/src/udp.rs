@@ -1,15 +1,15 @@
 //!
 //! Udp Datagram Clients and Servers
-//! 
+//!
 //! Udp Clients and Servers utilize Udp Datagrams to send
 //! requests from clients to servers and then to send responses
 //! back from servers to clients
-//! 
+//!
 
 use std::{
-    net::{SocketAddr, UdpSocket},
-    marker::PhantomData,
     io::Error,
+    marker::PhantomData,
+    net::{SocketAddr, UdpSocket},
 };
 
 use ncomm_core::{Client, Server};
@@ -61,14 +61,18 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
 
     fn send_request(&mut self, request: Self::Request) -> Result<(), Self::Error> {
         let mut buffer = vec![0u8; Req::len()];
-        request.pack(&mut buffer).map_err(UdpClientServerError::PackingError)?;
+        request
+            .pack(&mut buffer)
+            .map_err(UdpClientServerError::PackingError)?;
 
-        self.socket.send_to(&buffer, self.address).map_err(UdpClientServerError::IOError)?;
-        Ok(()) 
+        self.socket
+            .send_to(&buffer, self.address)
+            .map_err(UdpClientServerError::IOError)?;
+        Ok(())
     }
 
     /// Check the UDP socket for incoming Datagrams.
-    /// 
+    ///
     /// Note: Incoming data will be in the form:
     /// \[request\[0\], request\[1\], ..., request\[-1\], response\[0\], response\[1\], ...\]
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
@@ -95,7 +99,7 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
 
 /// A udp server that receives requests via a Udp Socket and sends response
 /// via a the same Udp Socket to given addresses
-/// 
+///
 /// Notes:
 ///     * REQ_SIZE is the size of the request
 ///     * RES_SIZE is the total size of the response (i.e. the sum of the size of the
@@ -122,7 +126,10 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> UdpServer<Req, Res, K> {
     }
 
     /// Create a new Udp Server with a list of clients and addresses
-    pub fn new_with(bind_address: SocketAddr, clients: Vec<(K, SocketAddr)>) -> Result<Self, Error> {
+    pub fn new_with(
+        bind_address: SocketAddr,
+        clients: Vec<(K, SocketAddr)>,
+    ) -> Result<Self, Error> {
         let socket = UdpSocket::bind(bind_address)?;
         socket.set_nonblocking(true)?;
         Ok(Self {
@@ -161,7 +168,7 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
                     } else {
                         requests.push(Err(UdpClientServerError::UnknownRequester(data)));
                     }
-                },
+                }
                 Err(err) => requests.push(Err(UdpClientServerError::PackingError(err))),
             }
         }
@@ -169,14 +176,24 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
         requests
     }
 
-    fn send_response(&mut self, client_key: Self::Key, request: Self::Request, response: Self::Response) -> Result<(), Self::Error> {
+    fn send_response(
+        &mut self,
+        client_key: Self::Key,
+        request: Self::Request,
+        response: Self::Response,
+    ) -> Result<(), Self::Error> {
         if let Some((_, address)) = self.client_addresses.iter().find(|v| v.0 == client_key) {
             let mut buffer = vec![0u8; Req::len() + Res::len()];
 
-            request.pack(&mut buffer[0..Req::len()]).map_err(UdpClientServerError::PackingError)?;
-            response.pack(&mut buffer[Req::len()..]).map_err(UdpClientServerError::PackingError)?;
+            request
+                .pack(&mut buffer[0..Req::len()])
+                .map_err(UdpClientServerError::PackingError)?;
+            response
+                .pack(&mut buffer[Req::len()..])
+                .map_err(UdpClientServerError::PackingError)?;
 
-            self.socket.send_to(&buffer, address)
+            self.socket
+                .send_to(&buffer, address)
                 .map_err(UdpClientServerError::IOError)?;
             Ok(())
         } else {
@@ -189,7 +206,11 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
 mod tests {
     use super::*;
 
-    use std::{net::{Ipv4Addr, SocketAddrV4}, thread::sleep, time::Duration};
+    use std::{
+        net::{Ipv4Addr, SocketAddrV4},
+        thread::sleep,
+        time::Duration,
+    };
 
     use rand::random;
 
@@ -200,9 +221,7 @@ mod tests {
 
     impl Request {
         pub fn new() -> Self {
-            Self {
-                num: random(),
-            }
+            Self { num: random() }
         }
     }
 
@@ -223,11 +242,13 @@ mod tests {
             if data.len() < 8 {
                 Err(PackingError::InvalidBufferSize)
             } else {
-                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+                Ok(Self {
+                    num: u64::from_le_bytes(data[..8].try_into().unwrap()),
+                })
             }
         }
     }
-    
+
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct Response {
         num: u64,
@@ -258,7 +279,9 @@ mod tests {
             if data.len() < 8 {
                 Err(PackingError::InvalidBufferSize)
             } else {
-                Ok(Self { num: u64::from_le_bytes(data[..8].try_into().unwrap())})
+                Ok(Self {
+                    num: u64::from_le_bytes(data[..8].try_into().unwrap()),
+                })
             }
         }
     }
@@ -268,20 +291,29 @@ mod tests {
         let mut server: UdpServer<Request, Response, i32> = UdpServer::new_with(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
             vec![
-                (0, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001))),
-                (1, SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002))),
-            ]
-        ).unwrap();
+                (
+                    0,
+                    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
+                ),
+                (
+                    1,
+                    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
+                ),
+            ],
+        )
+        .unwrap();
 
         let mut client_one: UdpClient<Request, Response> = UdpClient::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7001)),
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut client_two: UdpClient<Request, Response> = UdpClient::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7002)),
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7000)),
-        ).unwrap();
+        )
+        .unwrap();
 
         let client_one_request = Request::new();
         let client_one_response = Response::new(client_one_request.clone());
@@ -299,7 +331,9 @@ mod tests {
                     0 => assert_eq!(request.1, client_one_request),
                     _ => assert_eq!(request.1, client_two_request),
                 }
-                server.send_response(request.0, request.1, Response::new(request.1.clone())).unwrap();
+                server
+                    .send_response(request.0, request.1, Response::new(request.1.clone()))
+                    .unwrap();
             }
         }
 

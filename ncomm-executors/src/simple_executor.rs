@@ -1,16 +1,16 @@
 //!
 //! The Simple Executor
-//! 
+//!
 //! The simple executor is the most simple and easy to understand
 //! executor in the NComm system.  Basically, the simple executor is
 //! a singular thread that stores each node in a sorted vector and
 //! pops off the highest priority Node, executes its update method
 //! and then inserts it into the sorted vector with an updated priority.
-//! 
+//!
 //! In practice, I would say it is unlikely for the simple executor
 //! to find a lot of use out in the wild but it is probably the best
 //! executor for single threaded execution.
-//! 
+//!
 
 use crossbeam::channel::Receiver;
 
@@ -18,17 +18,17 @@ use quanta::{Clock, Instant};
 
 use ncomm_core::{Executor, ExecutorState, Node};
 
-use crate::{NodeWrapper, insert_into};
+use crate::{insert_into, NodeWrapper};
 
 /// Simple Executor
-/// 
+///
 /// This simple executor stores Nodes in a sorted vector where the
 /// priority is higher the closer to the current timestamp the Node's
 /// next update is.
-/// 
+///
 /// Note: The Simple Executor can be interrupted by sending a true value
 /// over the mpsc channel whose receiving end is owned by the SimpleExecutor
-/// 
+///
 /// Addendum: The Simple Executor will also busy wait between node executions
 /// so do not expect the SimpleExecutor to yield CPU time to other processes while
 /// it is running.
@@ -87,7 +87,7 @@ impl SimpleExecutor {
 impl Executor for SimpleExecutor {
     /// For each node in the simple executor we should reset their priority to 0
     /// and start the node.  We should also set the start_instant to the current time.
-    /// 
+    ///
     /// Note: this method should not be called individually as it will always be
     /// called during the `update_for_ms` and `update_loop` methods so running
     /// it here is completely redundant.
@@ -104,7 +104,7 @@ impl Executor for SimpleExecutor {
 
     /// Start the executor and run the executor for a given number of milliseconds before
     /// stopping the executor.  An interrupt will also stop the executor early.
-    /// 
+    ///
     /// Note: if there are no Nodes currently in the executor it will busy wait until the
     /// time has passed or an interrupt occurs
     fn update_for_ms(&mut self, ms: u128) {
@@ -113,8 +113,22 @@ impl Executor for SimpleExecutor {
 
         // Run the Executor
         self.state = ExecutorState::Running;
-        while self.clock.now().duration_since(self.start_instant).as_millis() < ms && !self.check_interrupt() {
-            if self.backing.last().is_some() && self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+        while self
+            .clock
+            .now()
+            .duration_since(self.start_instant)
+            .as_millis()
+            < ms
+            && !self.check_interrupt()
+        {
+            if self.backing.last().is_some()
+                && self
+                    .clock
+                    .now()
+                    .duration_since(self.start_instant)
+                    .as_micros()
+                    >= self.backing.last().unwrap().priority
+            {
                 let mut node_wrapper = self.backing.pop().unwrap();
                 node_wrapper.node.update();
                 node_wrapper.priority += node_wrapper.node.get_update_delay_us();
@@ -131,7 +145,7 @@ impl Executor for SimpleExecutor {
     }
 
     /// Start the executor and run until an interrupt is received.
-    /// 
+    ///
     /// Note: if there are no Nodes currently in the executor it will busy wait until it
     /// receives an interrupt
     fn update_loop(&mut self) {
@@ -141,8 +155,14 @@ impl Executor for SimpleExecutor {
         // Run the Executor
         self.state = ExecutorState::Running;
         while !self.check_interrupt() {
-            if self.backing.last().is_some() &&
-                self.clock.now().duration_since(self.start_instant).as_micros() >= self.backing.last().unwrap().priority {
+            if self.backing.last().is_some()
+                && self
+                    .clock
+                    .now()
+                    .duration_since(self.start_instant)
+                    .as_micros()
+                    >= self.backing.last().unwrap().priority
+            {
                 let mut node_wrapper = self.backing.pop().unwrap();
                 node_wrapper.node.update();
                 node_wrapper.priority += node_wrapper.node.get_update_delay_us();
@@ -169,8 +189,8 @@ impl Executor for SimpleExecutor {
     }
 
     /// Add a node to the Simple Executor.
-    /// 
-    /// Node: If nodes are added in start `ExecutorState::Started` or 
+    ///
+    /// Node: If nodes are added in start `ExecutorState::Started` or
     /// `ExecutorState::Running` the node will have to be updated and
     /// inserted into the backing vector by priority.
     fn add_node(&mut self, node: Box<dyn Node>) {
@@ -180,9 +200,13 @@ impl Executor for SimpleExecutor {
             insert_into(
                 &mut self.backing,
                 NodeWrapper {
-                    priority: self.clock.now().duration_since(self.start_instant).as_micros(),
+                    priority: self
+                        .clock
+                        .now()
+                        .duration_since(self.start_instant)
+                        .as_micros(),
                     node,
-                }
+                },
             );
         }
     }
@@ -192,7 +216,7 @@ impl Executor for SimpleExecutor {
 mod tests {
     use super::*;
 
-    use std::{any::Any, time::Duration, thread};
+    use std::{any::Any, thread, time::Duration};
 
     use crossbeam::channel::unbounded;
 
@@ -250,7 +274,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(100_000)),
                 Box::new(SimpleNode::new(250_000)),
-            ]
+            ],
         );
         let original_start_instant = executor.start_instant;
 
@@ -276,7 +300,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
+            ],
         );
 
         let start = executor.clock.now();
@@ -307,7 +331,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
+            ],
         );
 
         tx.send(true).unwrap();
@@ -324,7 +348,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
+            ],
         );
 
         executor.add_node(Box::new(SimpleNode::new(1_000)));
@@ -341,7 +365,7 @@ mod tests {
             vec![
                 Box::new(SimpleNode::new(10_000)),
                 Box::new(SimpleNode::new(25_000)),
-            ]
+            ],
         );
 
         let handle = thread::spawn(move || {

@@ -2,16 +2,16 @@
 //! An update server example that calculates the nth term in the
 //! fibonacci sequence, updating a client with each sequence of terms
 //! into the series
-//! 
+//!
 
-use super::{FibonacciRequest, FibonacciUpdate, FibonacciResponse};
+use super::{FibonacciRequest, FibonacciResponse, FibonacciUpdate};
 
 use ncomm_core::{Node, UpdateServer};
 use ncomm_update_clients_and_servers::local::{LocalUpdateClient, LocalUpdateServer};
 
 /// An update server node that calculates the nth term in the fibonacci
 /// sequence
-/// 
+///
 /// Note: for this example, the update server only expects a single client but
 /// it would be trivial to make this update server capable of handling multiple
 /// clients.
@@ -38,7 +38,10 @@ impl FibonacciUpdateServer {
     }
 
     /// Create a client for the fibonacci update server node
-    pub fn create_client(&mut self, client_name: String) -> LocalUpdateClient<FibonacciRequest, FibonacciUpdate, FibonacciResponse> {
+    pub fn create_client(
+        &mut self,
+        client_name: String,
+    ) -> LocalUpdateClient<FibonacciRequest, FibonacciUpdate, FibonacciResponse> {
         self.update_server.create_update_client(client_name)
     }
 
@@ -59,11 +62,16 @@ impl FibonacciUpdateServer {
             let next_num = self.last_num + self.current_num;
             self.last_num = self.current_num;
             self.current_num = next_num;
-            self.update_server.send_update(
-                client_id.clone(),
-                &request,
-                FibonacciUpdate { last_num: self.last_num, current_num: self.current_num }
-            ).unwrap();
+            self.update_server
+                .send_update(
+                    client_id.clone(),
+                    &request,
+                    FibonacciUpdate {
+                        last_num: self.last_num,
+                        current_num: self.current_num,
+                    },
+                )
+                .unwrap();
             self.current_order += 1;
         }
     }
@@ -72,11 +80,15 @@ impl FibonacciUpdateServer {
     fn send_response(&mut self) {
         if self.current_request.is_some() && self.current_order == self.order {
             let (client_id, request) = self.current_request.take().unwrap();
-            self.update_server.send_response(
-                client_id,
-                request,
-                FibonacciResponse { num: self.current_num }
-            ).unwrap();
+            self.update_server
+                .send_response(
+                    client_id,
+                    request,
+                    FibonacciResponse {
+                        num: self.current_num,
+                    },
+                )
+                .unwrap();
         }
     }
 }

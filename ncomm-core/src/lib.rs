@@ -1,7 +1,7 @@
 //!
 //! Ncomm-Core is a collection of traits that layout the core of the
 //! ncomm robotics framework.
-//! 
+//!
 
 #![deny(unsafe_code)]
 #![deny(missing_docs)]
