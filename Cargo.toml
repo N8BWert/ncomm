@@ -1,20 +1,56 @@
-[package]
-name = "ncomm"
-version = "0.4.2"
+[workspace]
+members = [
+    "ncomm",
+    "ncomm-core",
+    "ncomm-utils",
+    "ncomm-executors",
+    "ncomm-publishers-and-subscribers",
+    "ncomm-clients-and-servers",
+    "ncomm-update-clients-and-servers",
+    "ncomm-nodes",
+    "examples/minimal-client-server",
+    "examples/minimal-update-client-server",
+    "examples/minimal-publisher-subscriber",
+]
+
+default-members = [
+    "ncomm",
+    "ncomm-core",
+    "ncomm-utils",
+    "ncomm-executors",
+    "ncomm-publishers-and-subscribers",
+    "ncomm-clients-and-servers",
+    "ncomm-update-clients-and-servers",
+    "ncomm-nodes",
+]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 description = "Rust Node-Based Communication Prototype Framework"
+keywords = ["robotics", "middleware", "NComm"]
 homepage = "https://github.com/N8BWert/ncomm"
 repository = "https://github.com/N8BWert/ncomm"
 readme = "README.md"
+authors = ["Nate Wert <n8.wert.b@gmail.com>"]
+categories = ["science::robotics"]
 
-[dependencies]
-ctrlc = "3.4.0"
+[workspace.dependencies]
+# NComm
+ncomm = { path = "ncomm", version = "1.0.0" }
+ncomm-core = { path = "ncomm-core", version = "1.0.0" }
+ncomm-utils = { path = "ncomm-utils", version = "1.0.0" }
+ncomm-executors = { path = "ncomm-executors", version = "1.0.0" }
+ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.0.0" }
+ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.0.0" }
+ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.0.0" }
+ncomm-nodes = { path = "ncomm-nodes", version = "1.0.0" }
 
-[dependencies.packed_struct]
-version = "0.10.1"
-optional = true
-
-[features]
-default = ["packed-struct"]
-packed-struct = ["dep:packed_struct"]
+# Outside Dependencies
+crossbeam = "0.8.4"
+quanta = "0.12.3"
+threadpool = "1.8.1"
+ctrlc = "3.4.5"
+rand = "0.8.5"

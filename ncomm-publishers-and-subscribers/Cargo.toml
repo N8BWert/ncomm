@@ -1,0 +1,19 @@
+[package]
+name = "ncomm-publishers-and-subscribers"
+description = "NComm Publishers and Subscribers"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+crossbeam = { workspace = true }
+ncomm-core = { workspace = true }
+ncomm-utils = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

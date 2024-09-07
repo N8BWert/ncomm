@@ -1,0 +1,28 @@
+name: NComm Release
+run-name: NComm Release
+on:
+  push:
+    tags:
+      '[0-9].[0-9].[0-9]'
+jobs:
+  Publish-Docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Generate Docs
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --no-deps 
+        env:
+          RUSTDOC_FLAGS: --enable-index-page -Zunstable-options
+      - name: Deploy docs to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc

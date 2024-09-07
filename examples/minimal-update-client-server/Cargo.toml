@@ -1,0 +1,19 @@
+[package]
+name = "minimal-update-client-server"
+description = "Minimal Update Client and Server example based on the [Ros 2 Tutorial](https://docs.ros.org/en/foxy/Tutorials/Intermediate/Writing-an-Action-Server-Client/Cpp.html)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+categories.workspace = true
+
+[dependencies]
+ncomm-core = { workspace = true }
+ncomm-executors = { workspace = true }
+ncomm-update-clients-and-servers = { workspace = true }
+crossbeam = { workspace = true }
+ctrlc = { workspace = true }

@@ -1,0 +1,19 @@
+name: Push CI/CD
+run-name: Push CI/CD
+on: [push]
+jobs:
+  Cargo-Check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v3
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Run Cargo Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets
