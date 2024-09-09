@@ -1,0 +1,4 @@
+(function() {var implementors = {
+"ncomm":[],
+"ncomm_executors":[["impl <a class=\"trait\" href=\"ncomm_core/executor/trait.Executor.html\" title=\"trait ncomm_core::executor::Executor\">Executor</a> for <a class=\"struct\" href=\"ncomm_executors/simple_executor/struct.SimpleExecutor.html\" title=\"struct ncomm_executors::simple_executor::SimpleExecutor\">SimpleExecutor</a>"],["impl <a class=\"trait\" href=\"ncomm_core/executor/trait.Executor.html\" title=\"trait ncomm_core::executor::Executor\">Executor</a> for <a class=\"struct\" href=\"ncomm_executors/threadpool_executor/struct.ThreadPoolExecutor.html\" title=\"struct ncomm_executors::threadpool_executor::ThreadPoolExecutor\">ThreadPoolExecutor</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

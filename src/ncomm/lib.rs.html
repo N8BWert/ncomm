@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `ncomm/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ncomm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<a href="#2" id="2">2</a>
+<a href="#3" id="3">3</a>
+<a href="#4" id="4">4</a>
+<a href="#5" id="5">5</a>
+<a href="#6" id="6">6</a>
+<a href="#7" id="7">7</a>
+<a href="#8" id="8">8</a>
+<a href="#9" id="9">9</a>
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+<a href="#12" id="12">12</a>
+<a href="#13" id="13">13</a>
+<a href="#14" id="14">14</a>
+<a href="#15" id="15">15</a>
+<a href="#16" id="16">16</a>
+<a href="#17" id="17">17</a>
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
+<a href="#47" id="47">47</a>
+<a href="#48" id="48">48</a>
+<a href="#49" id="49">49</a>
+<a href="#50" id="50">50</a>
+<a href="#51" id="51">51</a>
+<a href="#52" id="52">52</a>
+<a href="#53" id="53">53</a>
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//!
+//! # NComm
+//!
+//! NComm is a robotics framework designed for developing large parallel robotics projects.
+//!
+//! ## Description
+//!
+//! The idea behind NComm is that the robotics framework should provide structure and communication primitives but, other than that, the user should be free to use whatever they want.
+//!
+//! ## Technical Overview
+//!
+//! In NComm (like Ros) a single "task" or unit of work is considered a Node.  In NComm, nodes implement the Node interface which defines specific actions and properties of a node.
+//!
+//! For example, imagine a single unit of work that receives sensor data and is responsible for performing fusion on the various pieces of sensor data.  This node would typically look something like:
+//!
+//! ```rust
+//! pub struct SensorFusionNode {
+//!     // Sensor subscribers
+//!     temperature_sensor_subscriber,
+//!     imu_sensor_subscriber,
+//!     ...
+//!
+//!     // Data publishers
+//!     state_estimation_publisher,
+//! }
+//! ```
+//!
+//! Then implementing the Node interface for the SensorFusionNode requires specifying an update delay for the node as well as an optional behavior for the node given specific states.  First, I'll explain what the various states entail.
+//!
+//! ### The `Start` State
+//!
+//! The start state is run just before normal execution begins.  This makes start the perfect place to perform any necessary initialization logic that must occur before a system begins running.
+//!
+//! If the user is familiar with Arduino or Game Development, this is typically notated as `void setup()` and can be used to configure peripherals before the normal execution of the system begins.
+//!
+//! For our SensorFusionNode, the `Start` state could involve resetting internal state
+//! parameters or publishing an initial known state over the `state_estimation_publisher`.
+//!
+//! ### The `Update` State
+//!
+//! The update state is effectively the main operation of a Node.  This method is called every `update_delay` microseconds and almost certainly contains the actual
+//! runtime functionality or the node.
+//!
+//! If the user is familiar with Arduino or Game Development, this is typically notated as `void update()`.
+//!
+//! For our SensorFusionNode, the `Update` state would involve taking the incoming sensor values, calculating some state estimate and publishing that state estimate via the `state_estimate_publisher`.
+//!
+//! ### The `Shutdown` State
+//!
+//! The shutdown state is used to clean up any necessary work that was started during the `Update` state.  This could involve publishing a final message over the publisher or storing data for the next execution of the system.
+//!
+//! For our SensorFusionNode, the `Stop` state could involve saving the current state estimation to some log file so it can be used when the system begins again.
+//!
+//! ## Why?
+//!
+//! Why NComm?  Well that's a great question.  I created NComm because I feel like Ros had the right idea it just executed on the idea poorly.  Specifically, I love the idea of Nodes, publishers and subscribers, clients and servers, and action clients and servers but their performance is just plainly laughable in Ros because all types of communication need to be able to be sent between C++ code and Python code.
+//!
+//! In addition, I feel like the split of the project across Python and C++ is necessitated by the verbosity of C++ which quickly leads to a split between software developers between the C++ and Python stack.  Additionally, Rust can facilitate incredibly nice zero-cost abstraction that makes it significantly less verbose than C++ while maintaining equal-to-better performance.
+//!
+//! Every Rust project would also be amiss if it didn't mention something about memory safety so here's that part.  Rust is memory-safe and thread-safe by design (and by association so is NComm).  This means that with NComm you are very unlikely to encounter NREs and other common pitfalls that significantly impede the progress of C++ development.  NComm is also natively thread-safe so on multi-core systems NComm can often execute with significant performance improvements as more cores are added.
+//!
+//! ## Future
+//!
+//! Currently, NComm is only available on Rust with the `std` toolchain.  This is fine, but I would love to have `no_std` versions of the communication primitives for embedded development.  However, I don't think it is likely I will make `no_std` executors and instead work on adding communication primitive support to current RTOS's like RTIC and Embassy (both of which much better than I could likely create on my own).  In general, I would encourage people to add anything they think is missing to this project.  I can already see a possibility for building secure network communication primitives and creating standard nodes for data visualization and logging so I encourage people to build whatever they see fit.
+//!
+
+</span><span class="kw">pub mod </span>prelude;
+
+<span class="doccomment">/// NComm Clients and Servers
+</span><span class="kw">pub use </span>ncomm_clients_and_servers <span class="kw">as </span>client_servers;
+<span class="doccomment">/// NComm Core Traits
+</span><span class="kw">pub use </span>ncomm_core <span class="kw">as </span>core;
+<span class="doccomment">/// NComm Executors
+</span><span class="kw">pub use </span>ncomm_executors <span class="kw">as </span>executors;
+<span class="doccomment">/// Common NComm Nodes
+</span><span class="kw">pub use </span>ncomm_nodes <span class="kw">as </span>nodes;
+<span class="doccomment">/// NComm Publishers and Subscribers
+</span><span class="kw">pub use </span>ncomm_publishers_and_subscribers <span class="kw">as </span>pubsubs;
+<span class="doccomment">/// NComm Update Clients and Servers
+</span><span class="kw">pub use </span>ncomm_update_clients_and_servers <span class="kw">as </span>update_client_servers;
+<span class="doccomment">/// NComm Utility Functionality and Traits
+</span><span class="kw">pub use </span>ncomm_utils <span class="kw">as </span>utils;
+</code></pre></div></section></main></body></html>
