@@ -21,6 +21,15 @@ use minimal_publisher::MinimalPublisher;
 pub mod minimal_subscriber;
 use minimal_subscriber::MinimalSubscriber;
 
+/// Identifier for the two nodes.
+#[derive(PartialEq)]
+pub enum NodeIdentifier {
+    /// The publisher node
+    PublisherNode,
+    /// The subscriber node
+    SubscriberNode,
+}
+
 fn main() {
     let mut publisher_node = MinimalPublisher::new();
     let subscriber_node = MinimalSubscriber::new(publisher_node.create_subscriber());

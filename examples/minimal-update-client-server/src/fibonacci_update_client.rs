@@ -3,7 +3,7 @@
 //! fibonacci series.
 //!
 
-use super::{FibonacciRequest, FibonacciResponse, FibonacciUpdate};
+use super::{FibonacciRequest, FibonacciResponse, FibonacciUpdate, NodeIdentifier};
 
 use ncomm_core::{Node, UpdateClient};
 use ncomm_update_clients_and_servers::local::LocalUpdateClient;
@@ -49,7 +49,11 @@ impl FibonacciUpdateClient {
     }
 }
 
-impl Node for FibonacciUpdateClient {
+impl Node<NodeIdentifier> for FibonacciUpdateClient {
+    fn get_id(&self) -> NodeIdentifier {
+        NodeIdentifier::FibonacciClient
+    }
+
     fn get_update_delay_us(&self) -> u128 {
         100_000
     }

@@ -3,7 +3,7 @@
 //! the wrapping sum of the two u64s.
 //!
 
-use super::{AddTwoIntsRequest, AddTwoIntsResponse};
+use super::{AddTwoIntsRequest, AddTwoIntsResponse, NodeIdentifier};
 
 use ncomm_clients_and_servers::local::{LocalClient, LocalServer};
 use ncomm_core::{Node, Server};
@@ -48,7 +48,11 @@ impl MinimalServer {
     }
 }
 
-impl Node for MinimalServer {
+impl Node<NodeIdentifier> for MinimalServer {
+    fn get_id(&self) -> NodeIdentifier {
+        NodeIdentifier::ServerNode
+    }
+
     fn get_update_delay_us(&self) -> u128 {
         500_000
     }

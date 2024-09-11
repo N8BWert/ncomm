@@ -20,6 +20,15 @@ use minimal_server::MinimalServer;
 pub mod minimal_client;
 use minimal_client::MinimalClient;
 
+/// An enum identifier or the two nodes
+#[derive(PartialEq)]
+pub enum NodeIdentifier {
+    /// The server node
+    ServerNode,
+    /// The client node
+    ClientNode,
+}
+
 /// A request that asks for the sum of two `u64`s.
 #[derive(Clone, Copy)]
 pub struct AddTwoIntsRequest {
