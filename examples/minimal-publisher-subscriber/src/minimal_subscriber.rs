@@ -3,6 +3,8 @@
 //! the publisher node.
 //!
 
+use super::NodeIdentifier;
+
 use ncomm_core::{Node, Subscriber};
 use ncomm_publishers_and_subscribers::local::LocalSubscriber;
 
@@ -27,7 +29,11 @@ impl MinimalSubscriber {
     }
 }
 
-impl Node for MinimalSubscriber {
+impl Node<NodeIdentifier> for MinimalSubscriber {
+    fn get_id(&self) -> NodeIdentifier {
+        NodeIdentifier::SubscriberNode
+    }
+
     fn get_update_delay_us(&self) -> u128 {
         500_000
     }

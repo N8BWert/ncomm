@@ -27,9 +27,9 @@ use crate::{insert_into, NodeWrapper};
 /// Addendum: The main thread of the ThreadPool is conducting the scheduling so
 /// the ThreadPool will only have n-1 worker threads where n is the total number
 /// of threads allocated to the threadpool executor.
-pub struct ThreadPoolExecutor {
+pub struct ThreadPoolExecutor<ID: PartialEq> {
     // The sorted backing vector for the executor
-    backing: Vec<NodeWrapper>,
+    backing: Vec<NodeWrapper<ID>>,
     // The quanta high-precision clock backing the ThreadPoll scheduler
     clock: Clock,
     // The ThreadPool to execute nodes on
@@ -44,7 +44,7 @@ pub struct ThreadPoolExecutor {
     interrupted: bool,
 }
 
-impl ThreadPoolExecutor {
+impl<ID: PartialEq> ThreadPoolExecutor<ID> {
     /// Creates a new ThreadPool executor without any Nodes
     pub fn new(threads: usize, interrupt: Receiver<bool>) -> Self {
         let clock = Clock::new();
@@ -66,7 +66,7 @@ impl ThreadPoolExecutor {
     pub fn new_with(
         threads: usize,
         interrupt: Receiver<bool>,
-        mut nodes: Vec<Box<dyn Node>>,
+        mut nodes: Vec<Box<dyn Node<ID>>>,
     ) -> Self {
         let mut backing = Vec::new();
         for node in nodes.drain(..) {
@@ -89,7 +89,7 @@ impl ThreadPoolExecutor {
     }
 }
 
-impl Executor for ThreadPoolExecutor {
+impl<ID: PartialEq + 'static> Executor<ID> for ThreadPoolExecutor<ID> {
     /// For each node in the ThreadPool executor the node will be updated
     /// and start_instant will be set to the current instant
     ///
@@ -199,13 +199,22 @@ impl Executor for ThreadPoolExecutor {
 
     /// Add a node to the ThreadPool Executor.
     ///
-    /// Note: If the executor is currently in `ExecutorState::Started` or
-    /// `ExecutorState::Running` the node will be added with maximum
-    /// priority to the backing vector.
-    fn add_node(&mut self, node: Box<dyn Node>) {
+    /// Note: Nodes can only be added to the executor when it is not running.
+    ///
+    /// Additionally, only 1 node can exist per id so additional nodes added with the same
+    /// id will replace the previous node of a given id
+    fn add_node(&mut self, node: Box<dyn Node<ID>>) {
+        if let Some(idx) = self
+            .backing
+            .iter()
+            .position(|node_wrapper| node_wrapper.node.get_id().eq(&node.get_id()))
+        {
+            self.backing.remove(idx);
+        }
+
         if self.state == ExecutorState::Stopped {
             self.backing.push(NodeWrapper { priority: 0, node });
-        } else {
+        } else if self.state == ExecutorState::Started {
             insert_into(
                 &mut self.backing,
                 NodeWrapper {
@@ -217,6 +226,25 @@ impl Executor for ThreadPoolExecutor {
                     node,
                 },
             );
+        }
+    }
+
+    /// Remove a node from the Threadpool Executor.
+    ///
+    /// Note: Nodes can only be removed from hte executor when it is not running
+    fn remove_node(&mut self, id: &ID) -> Option<Box<dyn Node<ID>>> {
+        if self.state != ExecutorState::Running {
+            let idx = self
+                .backing
+                .iter()
+                .position(|node_wrapper| node_wrapper.node.get_id().eq(id));
+            if let Some(idx) = idx {
+                Some(self.backing.remove(idx).destroy())
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
@@ -235,14 +263,16 @@ mod tests {
     }
 
     struct SimpleNode {
+        id: u8,
         update_delay: u128,
         num: u8,
         state: State,
     }
 
     impl SimpleNode {
-        pub fn new(update_delay: u128) -> Self {
+        pub fn new(id: u8, update_delay: u128) -> Self {
             Self {
+                id,
                 update_delay,
                 num: 0,
                 state: State::Stopped,
@@ -250,7 +280,11 @@ mod tests {
         }
     }
 
-    impl Node for SimpleNode {
+    impl Node<u8> for SimpleNode {
+        fn get_id(&self) -> u8 {
+            self.id
+        }
+
         fn start(&mut self) {
             self.state = State::Started;
         }
@@ -277,8 +311,8 @@ mod tests {
             3,
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
         let original_start_instant = executor.start_instant;
@@ -305,8 +339,8 @@ mod tests {
             3,
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
@@ -335,8 +369,8 @@ mod tests {
             3,
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
@@ -353,14 +387,57 @@ mod tests {
             3,
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
-        executor.add_node(Box::new(SimpleNode::new(1_000)));
+        executor.add_node(Box::new(SimpleNode::new(2, 1_000)));
 
         assert_eq!(executor.backing.len(), 3);
+    }
+
+    #[test]
+    fn test_add_node_same_id() {
+        let (_, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
+            ],
+        );
+
+        executor.add_node(Box::new(SimpleNode::new(0, 1_000)));
+
+        assert_eq!(executor.backing.len(), 2);
+        let node_zero = executor
+            .backing
+            .iter()
+            .find(|node_wrapper| node_wrapper.node.get_id().eq(&0))
+            .unwrap();
+        assert_eq!(node_zero.node.get_update_delay_us(), 1_000);
+    }
+
+    #[test]
+    fn test_remove_node() {
+        let (_, rx) = unbounded();
+
+        let mut executor = ThreadPoolExecutor::new_with(
+            3,
+            rx,
+            vec![
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
+            ],
+        );
+
+        executor.remove_node(&0);
+
+        assert_eq!(executor.backing.len(), 1);
+        assert_eq!(executor.backing[0].node.get_id(), 1);
     }
 
     #[test]
@@ -371,8 +448,8 @@ mod tests {
             2,
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 

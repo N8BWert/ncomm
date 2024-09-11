@@ -27,7 +27,10 @@ pub enum ExecutorState {
 }
 
 /// An executor handles the scheduling and execution of nodes
-pub trait Executor {
+///
+/// All nodes should have some unique ID that makes them identifiable
+/// as trait objects
+pub trait Executor<ID: PartialEq> {
     /// Starts the nodes contained by the executor
     fn start(&mut self);
 
@@ -43,13 +46,16 @@ pub trait Executor {
     fn check_interrupt(&mut self) -> bool;
 
     /// Add a node to the executor.
-    fn add_node(&mut self, node: Box<dyn Node>);
+    fn add_node(&mut self, node: Box<dyn Node<ID>>);
 
     /// Add a node to the executor with some given context.
     ///
     /// Note: The context is mainly to allow for extra configuration when
     /// adding nodes.
-    fn add_node_with_context<CTX>(&mut self, node: Box<dyn Node>, _ctx: CTX) {
+    fn add_node_with_context<CTX>(&mut self, node: Box<dyn Node<ID>>, _ctx: CTX) {
         self.add_node(node);
     }
+
+    /// Remove a node from the executor.
+    fn remove_node(&mut self, id: &ID) -> Option<Box<dyn Node<ID>>>;
 }

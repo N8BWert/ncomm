@@ -3,6 +3,8 @@
 //! the message "Hello, World! {count}" to the subscriber.
 //!
 
+use super::NodeIdentifier;
+
 use ncomm_core::{Node, Publisher};
 use ncomm_publishers_and_subscribers::local::{LocalPublisher, LocalSubscriber};
 
@@ -36,7 +38,11 @@ impl MinimalPublisher {
     }
 }
 
-impl Node for MinimalPublisher {
+impl Node<NodeIdentifier> for MinimalPublisher {
+    fn get_id(&self) -> NodeIdentifier {
+        NodeIdentifier::PublisherNode
+    }
+
     fn get_update_delay_us(&self) -> u128 {
         500_000u128
     }

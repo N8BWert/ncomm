@@ -11,7 +11,13 @@
 
 /// A Node represents a singular process that performs some singular
 /// purpose
-pub trait Node: Send {
+///
+/// Nodes should also all be given unique IDs so that they can be identified as
+/// trait objects.
+pub trait Node<ID: PartialEq>: Send {
+    /// Return the node's ID
+    fn get_id(&self) -> ID;
+
     /// Return the node's update rate (in us)
     fn get_update_delay_us(&self) -> u128;
 

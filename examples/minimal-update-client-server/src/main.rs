@@ -19,6 +19,15 @@ use fibonacci_update_client::FibonacciUpdateClient;
 pub mod fibonacci_update_server;
 use fibonacci_update_server::FibonacciUpdateServer;
 
+#[derive(PartialEq)]
+/// An identifier for the fibonacci client and server
+pub enum NodeIdentifier {
+    /// The fibonacci client
+    FibonacciClient,
+    /// The fibonacci server
+    FibonacciServer,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// A request asking for a the nth order of the fibonacci sequence.
 pub struct FibonacciRequest {

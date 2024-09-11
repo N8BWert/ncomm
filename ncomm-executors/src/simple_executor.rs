@@ -32,9 +32,9 @@ use crate::{insert_into, NodeWrapper};
 /// Addendum: The Simple Executor will also busy wait between node executions
 /// so do not expect the SimpleExecutor to yield CPU time to other processes while
 /// it is running.
-pub struct SimpleExecutor {
+pub struct SimpleExecutor<ID: PartialEq> {
     // The sorted backing vector for the executor
-    backing: Vec<NodeWrapper>,
+    backing: Vec<NodeWrapper<ID>>,
     // The quanta high-precision clock backing the SimplExecutor
     clock: Clock,
     // The current state of the executor
@@ -47,7 +47,7 @@ pub struct SimpleExecutor {
     interrupted: bool,
 }
 
-impl SimpleExecutor {
+impl<ID: PartialEq> SimpleExecutor<ID> {
     /// Create a new Simple Executor without any Nodes
     pub fn new(interrupt: Receiver<bool>) -> Self {
         let clock = Clock::new();
@@ -64,7 +64,7 @@ impl SimpleExecutor {
     }
 
     /// Creates a new Simple Executor with a number of Nodes
-    pub fn new_with(interrupt: Receiver<bool>, mut nodes: Vec<Box<dyn Node>>) -> Self {
+    pub fn new_with(interrupt: Receiver<bool>, mut nodes: Vec<Box<dyn Node<ID>>>) -> Self {
         let mut backing = Vec::new();
         for node in nodes.drain(..) {
             backing.push(NodeWrapper { priority: 0, node });
@@ -84,7 +84,7 @@ impl SimpleExecutor {
     }
 }
 
-impl Executor for SimpleExecutor {
+impl<ID: PartialEq> Executor<ID> for SimpleExecutor<ID> {
     /// For each node in the simple executor we should reset their priority to 0
     /// and start the node.  We should also set the start_instant to the current time.
     ///
@@ -190,13 +190,22 @@ impl Executor for SimpleExecutor {
 
     /// Add a node to the Simple Executor.
     ///
-    /// Node: If nodes are added in start `ExecutorState::Started` or
-    /// `ExecutorState::Running` the node will have to be updated and
-    /// inserted into the backing vector by priority.
-    fn add_node(&mut self, node: Box<dyn Node>) {
+    /// Note: Nodes can only be added to the executor when it is not running.
+    ///
+    /// Additionally, only 1 node can exist per id so additional nodes added with
+    /// the same id will replace the previous node of a given id.
+    fn add_node(&mut self, node: Box<dyn Node<ID>>) {
+        if let Some(idx) = self
+            .backing
+            .iter()
+            .position(|node_wrapper| node_wrapper.node.get_id().eq(&node.get_id()))
+        {
+            self.backing.remove(idx);
+        }
+
         if self.state == ExecutorState::Stopped {
             self.backing.push(NodeWrapper { priority: 0, node });
-        } else {
+        } else if self.state == ExecutorState::Started {
             insert_into(
                 &mut self.backing,
                 NodeWrapper {
@@ -208,6 +217,25 @@ impl Executor for SimpleExecutor {
                     node,
                 },
             );
+        }
+    }
+
+    /// Remove a node from the Simple Executor.
+    ///
+    /// Note: Nodes can only be removed from the executor when it is not running.
+    fn remove_node(&mut self, id: &ID) -> Option<Box<dyn Node<ID>>> {
+        if self.state != ExecutorState::Running {
+            let idx = self
+                .backing
+                .iter()
+                .position(|node_wrapper| node_wrapper.node.get_id().eq(id));
+            if let Some(idx) = idx {
+                Some(self.backing.remove(idx).destroy())
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
@@ -228,14 +256,16 @@ mod tests {
     }
 
     pub struct SimpleNode {
+        id: u8,
         pub update_delay: u128,
         pub num: u8,
         state: State,
     }
 
     impl SimpleNode {
-        pub fn new(update_delay: u128) -> Self {
+        pub fn new(id: u8, update_delay: u128) -> Self {
             Self {
+                id,
                 update_delay,
                 num: 0,
                 state: State::Stopped,
@@ -243,7 +273,10 @@ mod tests {
         }
     }
 
-    impl Node for SimpleNode {
+    impl Node<u8> for SimpleNode {
+        fn get_id(&self) -> u8 {
+            self.id
+        }
         fn start(&mut self) {
             self.state = State::Started;
         }
@@ -272,8 +305,8 @@ mod tests {
         let mut executor = SimpleExecutor::new_with(
             rx,
             vec![
-                Box::new(SimpleNode::new(100_000)),
-                Box::new(SimpleNode::new(250_000)),
+                Box::new(SimpleNode::new(0, 100_000)),
+                Box::new(SimpleNode::new(1, 250_000)),
             ],
         );
         let original_start_instant = executor.start_instant;
@@ -298,8 +331,8 @@ mod tests {
         let mut executor = SimpleExecutor::new_with(
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
@@ -329,8 +362,8 @@ mod tests {
         let mut executor = SimpleExecutor::new_with(
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 110_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
@@ -346,14 +379,55 @@ mod tests {
         let mut executor = SimpleExecutor::new_with(
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
-        executor.add_node(Box::new(SimpleNode::new(1_000)));
+        executor.add_node(Box::new(SimpleNode::new(2, 1_000)));
 
         assert_eq!(executor.backing.len(), 3);
+    }
+
+    #[test]
+    fn test_add_node_same_id() {
+        let (_, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
+            ],
+        );
+
+        executor.add_node(Box::new(SimpleNode::new(0, 1_000)));
+
+        assert_eq!(executor.backing.len(), 2);
+        let zero_id = executor
+            .backing
+            .iter()
+            .find(|node_wrapper| node_wrapper.node.get_id().eq(&0))
+            .unwrap();
+        assert_eq!(zero_id.node.get_update_delay_us(), 1_000);
+    }
+
+    #[test]
+    fn test_remove_node() {
+        let (_, rx) = unbounded();
+
+        let mut executor = SimpleExecutor::new_with(
+            rx,
+            vec![
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
+            ],
+        );
+
+        executor.remove_node(&0);
+
+        assert_eq!(executor.backing.len(), 1);
+        assert_eq!(executor.backing[0].node.get_id(), 1);
     }
 
     #[test]
@@ -363,8 +437,8 @@ mod tests {
         let mut executor = SimpleExecutor::new_with(
             rx,
             vec![
-                Box::new(SimpleNode::new(10_000)),
-                Box::new(SimpleNode::new(25_000)),
+                Box::new(SimpleNode::new(0, 10_000)),
+                Box::new(SimpleNode::new(1, 25_000)),
             ],
         );
 
