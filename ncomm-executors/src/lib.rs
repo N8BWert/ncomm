@@ -22,6 +22,8 @@ pub use simple_executor::SimpleExecutor;
 pub mod threadpool_executor;
 pub use threadpool_executor::ThreadPoolExecutor;
 
+pub mod threaded_executor;
+
 use ncomm_core::node::Node;
 use std::cmp::{Ord, Ordering};
 

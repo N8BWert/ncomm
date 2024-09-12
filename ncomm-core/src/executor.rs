@@ -31,6 +31,9 @@ pub enum ExecutorState {
 /// All nodes should have some unique ID that makes them identifiable
 /// as trait objects
 pub trait Executor<ID: PartialEq> {
+    /// Optional Context for adding nodes with specific conditions
+    type Context;
+
     /// Starts the nodes contained by the executor
     fn start(&mut self);
 
@@ -52,7 +55,7 @@ pub trait Executor<ID: PartialEq> {
     ///
     /// Note: The context is mainly to allow for extra configuration when
     /// adding nodes.
-    fn add_node_with_context<CTX>(&mut self, node: Box<dyn Node<ID>>, _ctx: CTX) {
+    fn add_node_with_context(&mut self, node: Box<dyn Node<ID>>, _ctx: Self::Context) {
         self.add_node(node);
     }
 

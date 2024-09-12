@@ -12,6 +12,8 @@
 //! executor for single threaded execution.
 //!
 
+use std::any::Any;
+
 use crossbeam::channel::Receiver;
 
 use quanta::{Clock, Instant};
@@ -33,17 +35,17 @@ use crate::{insert_into, NodeWrapper};
 /// so do not expect the SimpleExecutor to yield CPU time to other processes while
 /// it is running.
 pub struct SimpleExecutor<ID: PartialEq> {
-    // The sorted backing vector for the executor
-    backing: Vec<NodeWrapper<ID>>,
-    // The quanta high-precision clock backing the SimplExecutor
+    /// The sorted backing vector for the executor
+    pub(crate) backing: Vec<NodeWrapper<ID>>,
+    /// The quanta high-precision clock backing the SimplExecutor
     clock: Clock,
-    // The current state of the executor
+    /// The current state of the executor
     state: ExecutorState,
-    // The Instant the executor was started
+    /// The Instant the executor was started
     start_instant: Instant,
-    // The Interrupt receiver channel
+    /// The Interrupt receiver channel
     interrupt: Receiver<bool>,
-    // Whether or not the executor has been interrupted
+    /// Whether or not the executor has been interrupted
     interrupted: bool,
 }
 
@@ -85,6 +87,9 @@ impl<ID: PartialEq> SimpleExecutor<ID> {
 }
 
 impl<ID: PartialEq> Executor<ID> for SimpleExecutor<ID> {
+    /// Context doesn't really apply to SimpleExecutors
+    type Context = Box<dyn Any>;
+
     /// For each node in the simple executor we should reset their priority to 0
     /// and start the node.  We should also set the start_instant to the current time.
     ///

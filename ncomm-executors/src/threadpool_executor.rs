@@ -3,7 +3,7 @@
 //! nodes to be run on a threadpool
 //!
 
-use std::cmp::max;
+use std::{any::Any, cmp::max};
 
 use quanta::{Clock, Instant};
 
@@ -28,19 +28,19 @@ use crate::{insert_into, NodeWrapper};
 /// the ThreadPool will only have n-1 worker threads where n is the total number
 /// of threads allocated to the threadpool executor.
 pub struct ThreadPoolExecutor<ID: PartialEq> {
-    // The sorted backing vector for the executor
+    /// The sorted backing vector for the executor
     backing: Vec<NodeWrapper<ID>>,
-    // The quanta high-precision clock backing the ThreadPoll scheduler
+    /// The quanta high-precision clock backing the ThreadPoll scheduler
     clock: Clock,
-    // The ThreadPool to execute nodes on
+    /// The ThreadPool to execute nodes on
     pool: ThreadPool,
-    // The current state of the executor
+    /// The current state of the executor
     state: ExecutorState,
-    // The Instant the executor was started
+    /// The Instant the executor was started
     start_instant: Instant,
-    // The Interrupt receiver channel
+    /// The Interrupt receiver channel
     interrupt: Receiver<bool>,
-    // Whether or not the executor has been interrupted
+    /// Whether or not the executor has been interrupted
     interrupted: bool,
 }
 
@@ -90,6 +90,9 @@ impl<ID: PartialEq> ThreadPoolExecutor<ID> {
 }
 
 impl<ID: PartialEq + 'static> Executor<ID> for ThreadPoolExecutor<ID> {
+    /// Context doesn't really apply to Threadpool executors
+    type Context = Box<dyn Any>;
+
     /// For each node in the ThreadPool executor the node will be updated
     /// and start_instant will be set to the current instant
     ///
