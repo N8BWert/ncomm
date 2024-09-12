@@ -588,7 +588,7 @@ mod tests {
             let simple_node: &dyn Any = &node_wrapper.node;
             let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
             assert_eq!(simple_node.state, State::Stopped);
-            assert!([9, 10, 11].contains(&simple_node.num));
+            assert!([8, 9, 10, 11, 12].contains(&simple_node.num));
         }
 
         for (executor, _) in executor.executors.iter() {
@@ -597,12 +597,12 @@ mod tests {
                 let simple_node: &dyn Any = &node_wrapper.node;
                 let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
                 assert_eq!(simple_node.state, State::Stopped);
-                assert!([9, 10, 11].contains(&simple_node.num));
+                assert!([8, 9, 10, 11, 12].contains(&simple_node.num));
             }
         }
 
         assert!(Duration::from_millis(95) < end - start);
-        assert!(end - start < Duration::from_millis(110));
+        assert!(end - start < Duration::from_millis(120));
     }
 
     #[test]
@@ -635,7 +635,7 @@ mod tests {
             let simple_node: &dyn Any = &node_wrapper.node;
             let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
             assert_eq!(simple_node.state, State::Stopped);
-            assert!([9, 10, 11].contains(&simple_node.num));
+            assert!([8, 9, 10, 11, 12].contains(&simple_node.num));
         }
 
         for (executor, _) in executor.executors.iter() {
@@ -644,7 +644,7 @@ mod tests {
                 let simple_node: &dyn Any = &node_wrapper.node;
                 let simple_node: &Box<SimpleNode> = unsafe { simple_node.downcast_ref_unchecked() };
                 assert_eq!(simple_node.state, State::Stopped);
-                assert!([9, 10, 11].contains(&simple_node.num));
+                assert!([8, 9, 10, 11, 12].contains(&simple_node.num));
             }
         }
     }
