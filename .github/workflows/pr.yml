@@ -104,3 +104,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+      - name: cd rerun-publisher
+        run: cd "$GITHUB_WORKSPACE/examples/rerun-publisher"
+      - name: Cargo Check Rerun Publisher Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: Cargo Build Rerun Publisher Example
+        uses: actions-rs/cargo@v1
+        with:
+          command: build

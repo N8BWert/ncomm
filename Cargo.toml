@@ -11,6 +11,7 @@ members = [
     "examples/minimal-client-server",
     "examples/minimal-update-client-server",
     "examples/minimal-publisher-subscriber",
+    "examples/rerun-publisher",
 ]
 
 default-members = [
@@ -54,3 +55,7 @@ quanta = "0.12.3"
 threadpool = "1.8.1"
 ctrlc = "3.4.5"
 rand = "0.8.5"
+rand_distr = "0.4.3"
+rerun = "0.18.2"
+re_web_viewer_server = "0.18.2"
+re_ws_comms = "0.18.2"
