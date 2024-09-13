@@ -14,6 +14,12 @@ repository.workspace = true
 crossbeam = { workspace = true }
 ncomm-core = { workspace = true }
 ncomm-utils = { workspace = true }
+quanta = { workspace = true }
+rerun = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+
+[features]
+default = []
+rerun = ["dep:rerun"]

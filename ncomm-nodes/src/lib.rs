@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//!
+//! Commonly used nodes for integrating NComm with other useful
+//! tools.
+//!
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[deny(missing_docs)]
+#[cfg(feature = "rerun")]
+pub mod rerun;
+#[cfg(feature = "rerun")]
+pub use rerun::RerunNode;
