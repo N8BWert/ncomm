@@ -87,6 +87,7 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
                 ),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
 
             if let (Ok(req), Ok(res)) = (req, res) {
                 responses.push(Ok((req, res)));
@@ -171,6 +172,7 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
                 }
                 Err(err) => requests.push(Err(UdpClientServerError::PackingError(err))),
             }
+            buffer.iter_mut().for_each(|v| *v = 0);
         }
 
         requests

@@ -12,5 +12,7 @@ pub mod local;
 
 pub mod udp;
 
+pub mod tcp;
+
 #[cfg(feature = "rerun")]
 pub mod rerun;
