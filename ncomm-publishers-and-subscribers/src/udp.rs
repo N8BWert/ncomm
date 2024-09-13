@@ -103,6 +103,7 @@ impl<Data: Packable> Subscriber for UdpSubscriber<Data> {
                 Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
             if let Ok(found_data) = temp {
                 data = Some(found_data);
             }
@@ -151,6 +152,7 @@ impl<Data: Packable> Subscriber for UdpBufferedSubscriber<Data> {
                 Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
             if let Ok(found_data) = temp {
                 self.buffer.push(found_data);
             }
@@ -196,6 +198,7 @@ impl<Data: Packable> Subscriber for UdpTTLSubscriber<Data> {
                 Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
 
             if let Ok(found_data) = temp {
                 data = Some(found_data);
@@ -252,6 +255,7 @@ impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber
                 Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
             if let Ok(found_data) = temp {
                 let label = (self.hash)(&found_data);
                 self.data.insert(label, found_data);
@@ -296,18 +300,19 @@ impl<Data: Packable, K: Eq + Hash, F: Fn(&Data) -> K> Subscriber
 
     fn get(&mut self) -> &Self::Target {
         let mut buffer = vec![0u8; Data::len()];
-        let now = Instant::now();
         loop {
             let temp = match self.rx.recv_from(&mut buffer) {
                 Ok(_received) => Data::unpack(&buffer[..]),
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
             if let Ok(found_data) = temp {
                 let label = (self.hash)(&found_data);
-                self.data.insert(label, (found_data, now));
+                self.data.insert(label, (found_data, Instant::now()));
             }
         }
 
+        let now = Instant::now();
         self.data.retain(|_, v| now.duration_since(v.1) <= self.ttl);
 
         &self.data

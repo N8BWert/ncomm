@@ -118,6 +118,7 @@ impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
                 }
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
 
             if let (Ok(req), Ok(updt)) = (req, updt) {
                 updates.push(Ok((req, updt)));
@@ -159,6 +160,7 @@ impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
                 }
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
 
             if let (Ok(req), Ok(res)) = (req, res) {
                 responses.push(Ok((req, res)));
@@ -232,6 +234,7 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
                 Ok((_request_size, address)) => address,
                 Err(_) => break,
             };
+            buffer.iter_mut().for_each(|v| *v = 0);
 
             match Req::unpack(&buffer[..]) {
                 Ok(data) => {
