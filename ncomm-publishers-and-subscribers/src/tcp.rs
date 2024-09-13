@@ -1,16 +1,16 @@
 //!
 //! A Network Tcp-Based Publisher and Subscriber
-//! 
+//!
 //! The TCP Publisher sends data via a TCP Stream to a bound
 //! listener on the Subscriber end
-//! 
+//!
 
 use std::{
     collections::HashMap,
     io::{Error, Read, Write},
     marker::PhantomData,
-    net::{SocketAddr, IpAddr, TcpListener, TcpStream},
-    time::{Duration, Instant}
+    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
+    time::{Duration, Instant},
 };
 
 use ncomm_core::{Publisher, Subscriber};
@@ -39,10 +39,7 @@ pub struct TcpPublisher<Data: Packable> {
 
 impl<Data: Packable> TcpPublisher<Data> {
     /// Create a new TcpPublisher
-    pub fn new(
-        send_addresses: Vec<SocketAddr>,
-        write_timeout: Option<Duration>,
-    ) -> Self {
+    pub fn new(send_addresses: Vec<SocketAddr>, write_timeout: Option<Duration>) -> Self {
         Self {
             addresses: send_addresses,
             write_timeout,
@@ -71,7 +68,7 @@ impl<Data: Packable> Publisher for TcpPublisher<Data> {
                     if let Err(err) = stream.write(&packed_data) {
                         publish_errors.push(err);
                     }
-                },
+                }
                 Err(err) => publish_errors.push(err),
             }
         }
@@ -124,7 +121,7 @@ impl<Data: Packable> TcpSubscriber<Data> {
     }
 
     /// Add an address to the whitelist.
-    /// 
+    ///
     /// Note: the whitelist is publicly accessible so this
     /// method is purely for convenience.
     pub fn add_address_to_whitelist(&mut self, address: IpAddr) {
@@ -136,19 +133,15 @@ impl<Data: Packable> TcpSubscriber<Data> {
     }
 
     /// Remove an address from the whitelist.
-    /// 
+    ///
     /// Note: the whitelist is publicly accessible so this
     /// method is purely for convenience.
-    pub fn remove_address_from_whitelist(
-        &mut self,
-        address: IpAddr,
-    ) -> Option<IpAddr> {
+    pub fn remove_address_from_whitelist(&mut self, address: IpAddr) -> Option<IpAddr> {
         if let Some(whitelist) = self.whitelist.as_mut() {
-            if let Some(idx) = whitelist.iter().position(|v| v.eq(&address)) {
-                Some(whitelist.remove(idx))
-            } else {
-                None
-            }
+            whitelist
+                .iter()
+                .position(|v| v.eq(&address))
+                .map(|idx| whitelist.remove(idx))
         } else {
             None
         }
@@ -166,7 +159,7 @@ impl<Data: Packable> Subscriber for TcpSubscriber<Data> {
                     continue;
                 }
             }
-    
+
             if stream.read(&mut buffer).is_ok() {
                 let data = Data::unpack(&buffer).unwrap();
                 self.data = Some(data);
@@ -218,7 +211,7 @@ impl<Data: Packable> TcpBufferedSubscriber<Data> {
     }
 
     /// Add an address to the whitelist.
-    /// 
+    ///
     /// Note: The whitelist was intentionally made public so users can
     /// modify the whitelist themselves so this is just a convenience method.
     pub fn add_address_to_whitelist(&mut self, address: IpAddr) {
@@ -230,16 +223,15 @@ impl<Data: Packable> TcpBufferedSubscriber<Data> {
     }
 
     /// Remove an address from the whitelist
-    /// 
+    ///
     /// Note: The whitelist was intentionally made public so this
     /// method is more of a convenience
     pub fn remove_address_from_whitelist(&mut self, address: IpAddr) -> Option<IpAddr> {
         if let Some(whitelist) = self.whitelist.as_mut() {
-            if let Some(idx) = whitelist.iter().position(|v| v.eq(&address)) {
-                Some(whitelist.remove(idx))
-            } else {
-                None
-            }
+            whitelist
+                .iter()
+                .position(|v| v.eq(&address))
+                .map(|idx| whitelist.remove(idx))
         } else {
             None
         }
@@ -276,7 +268,7 @@ impl<Data: Packable> Subscriber for TcpBufferedSubscriber<Data> {
 
 /// A Tcp Subscriber that subscribes to a TCP stream keeping data
 /// for specified time-to-live
-/// 
+///
 /// Note: this is not the same as setting the ttl value on the TCP packet.
 /// Instead, this is specifying that after the data has been received by the
 /// subscriber, that piece of data is valid for a specific duration of time.
@@ -324,7 +316,7 @@ impl<Data: Packable> TcpTTLSubscriber<Data> {
     }
 
     /// Add an address to the whitelist.
-    /// 
+    ///
     /// Note: The whitelist was intentionally made public so users can
     /// modify the whitelist themselves so this is just a convenience method.
     pub fn add_address_to_whitelist(&mut self, address: IpAddr) {
@@ -336,17 +328,15 @@ impl<Data: Packable> TcpTTLSubscriber<Data> {
     }
 
     /// Remove an address from the whitelist
-    /// 
+    ///
     /// Note: The whitelist was intentionally made public so this
     /// method is more of a convenience
     pub fn remove_address_from_whitelist(&mut self, address: IpAddr) -> Option<IpAddr> {
         if let Some(whitelist) = self.whitelist.as_mut() {
-            if let Some(idx) = whitelist.iter().position(|v| v.eq(&address)) {
-                Some(whitelist.remove(idx))
-            } else {
-                None
-            }
-
+            whitelist
+                .iter()
+                .position(|v| v.eq(&address))
+                .map(|idx| whitelist.remove(idx))
         } else {
             None
         }
@@ -383,10 +373,10 @@ impl<Data: Packable> Subscriber for TcpTTLSubscriber<Data> {
 }
 
 /// A Tcp Subscriber that maps incoming data to its IP address.
-/// 
+///
 /// Note: this subscriber does not have a whitelist as all incoming valid
 /// data will be stored in a hashmap by IP.
-/// 
+///
 /// Note: All incoming data is either mapped by its peer address or its
 /// local address.  Therefore, all data with a valid peer address will be
 /// stored by peer address and any data without valid peer address will be
@@ -429,7 +419,7 @@ impl<Data: Packable> Subscriber for TcpMappedSubscriber<Data> {
 
 /// A Tcp Subscriber that stores incoming data stored by IP Address with
 /// a given time-to-live for stored data.
-/// 
+///
 /// Note: In this case time-to-live means the amount of time after the
 /// data has been received by the subscriber.
 pub struct TcpMappedTTLSubscriber<Data: Packable> {
@@ -468,7 +458,8 @@ impl<Data: Packable> Subscriber for TcpMappedTTLSubscriber<Data> {
             buffer.iter_mut().for_each(|v| *v = 0);
         }
 
-        self.data.retain(|_, v| Instant::now().duration_since(v.1) <= self.ttl);
+        self.data
+            .retain(|_, v| Instant::now().duration_since(v.1) <= self.ttl);
 
         &self.data
     }
@@ -523,19 +514,15 @@ mod tests {
     #[test]
     fn test_publish_tcp_subscriber() {
         let mut publisher = TcpPublisher::new(
-            vec![
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6000)),
-            ],
-            None
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6000))],
+            None,
         );
 
-        let mut subscriber: TcpSubscriber<Data> =
-            TcpSubscriber::new_with_whitelist(
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6000)),
-                vec![
-                    IpAddr::V4(Ipv4Addr::LOCALHOST),
-                ]
-            ).unwrap();
+        let mut subscriber: TcpSubscriber<Data> = TcpSubscriber::new_with_whitelist(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6000)),
+            vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
+        )
+        .unwrap();
 
         let data = Data::new();
         publisher.publish(data.clone()).unwrap();
@@ -547,19 +534,16 @@ mod tests {
     #[test]
     fn test_publish_buffered_subscriber() {
         let mut publisher = TcpPublisher::new(
-            vec![
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6001)),
-            ],
-            None
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6001))],
+            None,
         );
 
         let mut subscriber: TcpBufferedSubscriber<Data> =
             TcpBufferedSubscriber::new_with_whitelist(
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6001)),
-                vec![
-                    IpAddr::V4(Ipv4Addr::LOCALHOST),
-                ]
-            ).unwrap();
+                vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
+            )
+            .unwrap();
 
         let datas = vec![Data::new(); 100];
         for data in datas.iter() {
@@ -577,26 +561,22 @@ mod tests {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6002)),
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6003)),
             ],
-            None
+            None,
         );
 
-        let mut short_subscriber: TcpTTLSubscriber<Data> =
-            TcpTTLSubscriber::new_with_whitelist(
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6002)),
-                vec![
-                    IpAddr::V4(Ipv4Addr::LOCALHOST)
-                ],
-                Duration::from_nanos(1),
-            ).unwrap();
+        let mut short_subscriber: TcpTTLSubscriber<Data> = TcpTTLSubscriber::new_with_whitelist(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6002)),
+            vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
+            Duration::from_nanos(1),
+        )
+        .unwrap();
 
-        let mut long_subscriber: TcpTTLSubscriber<Data> =
-            TcpTTLSubscriber::new_with_whitelist(
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6003)),
-                vec![
-                    IpAddr::V4(Ipv4Addr::LOCALHOST)
-                ],
-                Duration::from_secs(3),
-            ).unwrap();
+        let mut long_subscriber: TcpTTLSubscriber<Data> = TcpTTLSubscriber::new_with_whitelist(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6003)),
+            vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
+            Duration::from_secs(3),
+        )
+        .unwrap();
 
         let data = Data::new();
         publisher.publish(data.clone()).unwrap();
@@ -611,22 +591,23 @@ mod tests {
     #[test]
     fn test_publish_mapped_subscriber() {
         let mut publisher = TcpPublisher::new(
-            vec![
-                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6004)),
-            ],
-            None
+            vec![SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6004))],
+            None,
         );
 
-        let mut subscriber: TcpMappedSubscriber<Data> = TcpMappedSubscriber::new(
-            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6004))
-        ).unwrap();
+        let mut subscriber: TcpMappedSubscriber<Data> =
+            TcpMappedSubscriber::new(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6004)))
+                .unwrap();
 
         let data = Data::new();
         publisher.publish(data.clone()).unwrap();
 
         sleep(Duration::from_millis(50));
         assert_eq!(
-            *subscriber.get().get(&IpAddr::V4(Ipv4Addr::LOCALHOST)).unwrap(),
+            *subscriber
+                .get()
+                .get(&IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .unwrap(),
             data
         );
     }
@@ -638,18 +619,20 @@ mod tests {
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6005)),
                 SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6006)),
             ],
-            None
+            None,
         );
 
         let mut short_subscriber: TcpMappedTTLSubscriber<Data> = TcpMappedTTLSubscriber::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6005)),
             Duration::from_nanos(1),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut long_subscriber: TcpMappedTTLSubscriber<Data> = TcpMappedTTLSubscriber::new(
             SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6006)),
             Duration::from_secs(3),
-        ).unwrap();
+        )
+        .unwrap();
 
         let data = Data::new();
         publisher.publish(data.clone()).unwrap();
@@ -657,7 +640,17 @@ mod tests {
         sleep(Duration::from_millis(50));
         short_subscriber.get();
         long_subscriber.get();
-        assert_eq!(short_subscriber.get().get(&IpAddr::V4(Ipv4Addr::LOCALHOST)), None);
-        assert_eq!(long_subscriber.get().get(&IpAddr::V4(Ipv4Addr::LOCALHOST)).unwrap().0, data);
+        assert_eq!(
+            short_subscriber.get().get(&IpAddr::V4(Ipv4Addr::LOCALHOST)),
+            None
+        );
+        assert_eq!(
+            long_subscriber
+                .get()
+                .get(&IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .unwrap()
+                .0,
+            data
+        );
     }
 }

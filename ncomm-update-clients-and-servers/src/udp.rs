@@ -234,7 +234,6 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
                 Ok((_request_size, address)) => address,
                 Err(_) => break,
             };
-            buffer.iter_mut().for_each(|v| *v = 0);
 
             match Req::unpack(&buffer[..]) {
                 Ok(data) => {
@@ -248,6 +247,8 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
                 }
                 Err(err) => requests.push(Err(UdpUpdateClientServerError::PackingError(err))),
             }
+
+            buffer.iter_mut().for_each(|v| *v = 0);
         }
 
         requests
