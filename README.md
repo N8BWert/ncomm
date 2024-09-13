@@ -50,6 +50,12 @@ The shutdown state is used to clean up any necessary work that was started durin
 
 For our SensorFusionNode, the `Stop` state could involve saving the current state estimation to some log file so it can be used when the system begins again.
 
+## Integrations
+
+Currently NComm is has integration with the following packages:
+
+* Rerun - NComm has integration with the Rerun data visualizer as both a publisher and node.  To enable Rerun integration add the feature "rerun" to ncomm, ncomm-nodes, or ncomm-publishers-and-subscribers.
+
 ## Why?
 
 Why NComm?  Well that's a great question.  I created NComm because I feel like Ros had the right idea it just executed on the idea poorly.  Specifically, I love the idea of Nodes, publishers and subscribers, clients and servers, and action clients and servers but their performance is just plainly laughable in Ros because all types of communication need to be able to be sent between C++ code and Python code.

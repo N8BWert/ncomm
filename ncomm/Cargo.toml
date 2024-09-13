@@ -19,3 +19,8 @@ ncomm-publishers-and-subscribers = { workspace = true }
 ncomm-clients-and-servers = { workspace = true }
 ncomm-update-clients-and-servers = { workspace = true }
 ncomm-nodes = { workspace = true }
+
+[features]
+default = []
+rerun = ["ncomm-nodes/rerun", "ncomm-publishers-and-subscribers/rerun"]
+rerun-web-viewer = ["rerun", "ncomm-nodes/rerun-web-viewer"]
