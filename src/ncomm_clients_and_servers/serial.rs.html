@@ -253,6 +253,11 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! Serial Client and Server for communication using embedded-io
 //! traits.
@@ -264,6 +269,11 @@
 
 <span class="kw">use </span>ncomm_core::client_server::{Client, Server};
 <span class="kw">use </span>ncomm_utils::packing::{Packable, PackingError};
+
+<span class="attr">#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">use </span>alloc::vec::Vec;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">use </span>std::vec::Vec;
 
 <span class="doccomment">/// An Error regarding sending and receiving data via serial
 </span><span class="attr">#[derive(Debug)]

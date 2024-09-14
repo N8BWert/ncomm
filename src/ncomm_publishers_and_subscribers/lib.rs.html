@@ -23,6 +23,7 @@
 <a href="#23" id="23">23</a>
 <a href="#24" id="24">24</a>
 <a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! NComm Publishers and Subscribers
 //!
@@ -42,7 +43,8 @@
 <span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
 </span><span class="kw">pub mod </span>udp;
 
-<span class="kw">pub mod </span>tcp;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub mod </span>tcp;
 
 <span class="attr">#[cfg(feature = <span class="string">"rerun"</span>)]
 </span><span class="kw">pub mod </span>rerun;
