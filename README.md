@@ -56,6 +56,19 @@ Currently NComm is has integration with the following packages:
 
 * Rerun - NComm has integration with the Rerun data visualizer as both a publisher and node.  To enable Rerun integration add the feature "rerun" to ncomm, ncomm-nodes, or ncomm-publishers-and-subscribers.
 
+## Features
+
+To allow NComm to have the possibility of being used on as many types of devices as possible I'm using a heavy dose of Rust features to conditionally compile parts of the crates.  Specifically, each crate in the NComm collection has the following features:
+* nostd - Use the nostd feature when running on a target that doesn't support the Rust standard library (i.e. resource constrained embedded devices)
+* alloc - Use the alloc feature when running ona target that doesn't support the Rust standard library but there is some global allocator available so allocating a bit of memory isn't out of the question.  As a note, this will almost always also include the nostd feature of the crate.  This is because it is impossible to really run Rust without the core library (i.e. no-std) so a lot of the bare necessities of the NComm crate come from the nostd compatibility.
+* std (default) - The full availability of the Rust standard library is at your disposal.
+
+Note: I don't think there is any reason to have both "alloc" and "nostd" selected at the same time so I would highly recommend doing that as I'm pretty sure weird things will happen.
+
+In addition to the above features, NComm also has the following feature:
+* rerun - Enable Rerun integration support (available in ncomm, ncomm-nodes, and ncomm-publishers-and-subscribers)
+* rerun-web-viewer - Enable the Rerun web viewer (available in ncomm-nodes)
+
 ## Why?
 
 Why NComm?  Well that's a great question.  I created NComm because I feel like Ros had the right idea it just executed on the idea poorly.  Specifically, I love the idea of Nodes, publishers and subscribers, clients and servers, and action clients and servers but their performance is just plainly laughable in Ros because all types of communication need to be able to be sent between C++ code and Python code.
