@@ -27,7 +27,7 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 description = "Rust Node-Based Communication Prototype Framework"
@@ -40,13 +40,13 @@ categories = ["science::robotics"]
 
 [workspace.dependencies]
 # NComm
-ncomm = { path = "ncomm", version = "1.0.0", default-features = false }
-ncomm-core = { path = "ncomm-core", version = "1.0.0", default-features = false }
-ncomm-utils = { path = "ncomm-utils", version = "1.0.0", default-features = false }
-ncomm-executors = { path = "ncomm-executors", version = "1.0.0", default-features = false }
-ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.0.0", default-features = false }
-ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.0.0", default-features = false }
-ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.0.0", default-features = false }
+ncomm = { path = "ncomm", version = "1.1.0", default-features = false }
+ncomm-core = { path = "ncomm-core", version = "1.1.0", default-features = false }
+ncomm-utils = { path = "ncomm-utils", version = "1.1.0", default-features = false }
+ncomm-executors = { path = "ncomm-executors", version = "1.1.0", default-features = false }
+ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.1.0", default-features = false }
+ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.1.0", default-features = false }
+ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.1.0", default-features = false }
 ncomm-nodes = { path = "ncomm-nodes", version = "1.0.0", default-features = false }
 
 # Outside Dependencies
