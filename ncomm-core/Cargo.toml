@@ -11,3 +11,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+
+[features]
+default = ["std"]
+nostd = []
+alloc = ["nostd"]
+std = []

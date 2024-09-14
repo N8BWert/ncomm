@@ -34,12 +34,28 @@ impl<Req, Updt, Res> UpdateClient for LocalUpdateClient<Req, Updt, Res> {
         Ok(())
     }
 
+    fn poll_for_update(&mut self) -> Result<Option<(Self::Request, Self::Update)>, Self::Error> {
+        match self.update_rx.try_recv() {
+            Ok(update) => Ok(Some(update)),
+            Err(_) => Ok(None),
+        }
+    }
+
     fn poll_for_updates(&mut self) -> Vec<Result<(Self::Request, Self::Update), Self::Error>> {
         let mut updates = Vec::new();
         for update in self.update_rx.try_iter() {
             updates.push(Ok(update));
         }
         updates
+    }
+
+    fn poll_for_response(
+        &mut self,
+    ) -> Result<Option<(Self::Request, Self::Response)>, Self::Error> {
+        match self.response_rx.try_recv() {
+            Ok(response) => Ok(Some(response)),
+            Err(_) => Ok(None),
+        }
     }
 
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
@@ -96,6 +112,15 @@ impl<Req: Clone, Updt, Res, K: Hash + Eq + Clone> UpdateServer
     type Response = Res;
     type Key = K;
     type Error = Infallible;
+
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error> {
+        for (k, (rx, _, _)) in self.client_map.iter() {
+            if let Ok(request) = rx.try_recv() {
+                return Ok(Some((k.clone(), request)));
+            }
+        }
+        Ok(None)
+    }
 
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>> {
         let mut requests = Vec::new();
@@ -207,6 +232,44 @@ mod tests {
             let Ok((request, response)) = response;
             assert_eq!(request, original_request);
             assert_eq!(response, original_response);
+        }
+    }
+
+    #[test]
+    fn test_local_update_client_server_singular_request() {
+        let mut server = LocalUpdateServer::new();
+        let mut client = server.create_update_client(0u8);
+
+        let original_request = Request::new();
+        let original_update = Update::new(original_request.clone());
+        let original_response = Response::new(original_request.clone());
+
+        client.send_request(original_request.clone()).unwrap();
+
+        if let Ok(Some((client, request))) = server.poll_for_request() {
+            assert_eq!(request, original_request);
+            server
+                .send_update(client, &request, Update::new(request.clone()))
+                .unwrap();
+            server
+                .send_response(client, request, Response::new(request.clone()))
+                .unwrap();
+        } else {
+            assert!(false, "Expected a request to be received");
+        }
+
+        if let Ok(Some((request, update))) = client.poll_for_update() {
+            assert_eq!(request, original_request);
+            assert_eq!(update, original_update);
+        } else {
+            assert!(false, "Expected an update to be received");
+        }
+
+        if let Ok(Some((request, response))) = client.poll_for_response() {
+            assert_eq!(request, original_request);
+            assert_eq!(response, original_response);
+        } else {
+            assert!(false, "Expected a response to be received");
         }
     }
 }

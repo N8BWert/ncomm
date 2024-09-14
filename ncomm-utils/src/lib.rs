@@ -6,7 +6,9 @@
 //! are still useful for developing applications utilizing NComm.
 //!
 
-#![no_std]
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 pub mod packing;

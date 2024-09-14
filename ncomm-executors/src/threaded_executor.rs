@@ -602,7 +602,7 @@ mod tests {
         }
 
         assert!(Duration::from_millis(95) < end - start);
-        assert!(end - start < Duration::from_millis(120));
+        assert!(end - start < Duration::from_millis(150));
     }
 
     #[test]

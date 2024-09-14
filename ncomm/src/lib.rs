@@ -70,6 +70,10 @@
 //! Currently, NComm is only available on Rust with the `std` toolchain.  This is fine, but I would love to have `no_std` versions of the communication primitives for embedded development.  However, I don't think it is likely I will make `no_std` executors and instead work on adding communication primitive support to current RTOS's like RTIC and Embassy (both of which much better than I could likely create on my own).  In general, I would encourage people to add anything they think is missing to this project.  I can already see a possibility for building secure network communication primitives and creating standard nodes for data visualization and logging so I encourage people to build whatever they see fit.
 //!
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod prelude;
 
 /// NComm Clients and Servers

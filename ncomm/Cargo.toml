@@ -12,15 +12,43 @@ authors.workspace = true
 categories.workspace = true
 
 [dependencies]
-ncomm-core = { workspace = true }
-ncomm-utils = { workspace = true }
-ncomm-executors = { workspace = true }
-ncomm-publishers-and-subscribers = { workspace = true }
-ncomm-clients-and-servers = { workspace = true }
-ncomm-update-clients-and-servers = { workspace = true }
-ncomm-nodes = { workspace = true }
+ncomm-core = { workspace = true, default-features = false }
+ncomm-utils = { workspace = true, default-features = false }
+ncomm-executors = { workspace = true, default-features = false }
+ncomm-publishers-and-subscribers = { workspace = true, default-features = false }
+ncomm-clients-and-servers = { workspace = true, default-features = false }
+ncomm-update-clients-and-servers = { workspace = true, default-features = false }
+ncomm-nodes = { workspace = true, default-features = false }
 
 [features]
 default = []
-rerun = ["ncomm-nodes/rerun", "ncomm-publishers-and-subscribers/rerun"]
-rerun-web-viewer = ["rerun", "ncomm-nodes/rerun-web-viewer"]
+nostd = [
+    "ncomm-core/nostd",
+    "ncomm-utils/nostd",
+    "ncomm-executors/nostd",
+    "ncomm-publishers-and-subscribers/nostd",
+    "ncomm-clients-and-servers/nostd",
+    "ncomm-update-clients-and-servers/nostd",
+    "ncomm-nodes/nostd",
+]
+alloc = [
+    "nostd",
+    "ncomm-core/alloc",
+    "ncomm-utils/alloc",
+    "ncomm-executors/alloc",
+    "ncomm-publishers-and-subscribers/alloc",
+    "ncomm-clients-and-servers/alloc",
+    "ncomm-update-clients-and-servers/alloc",
+    "ncomm-nodes/alloc",
+]
+std = [
+    "ncomm-core/std",
+    "ncomm-utils/std",
+    "ncomm-executors/std",
+    "ncomm-publishers-and-subscribers/std",
+    "ncomm-clients-and-servers/std",
+    "ncomm-update-clients-and-servers/std",
+    "ncomm-nodes/std",
+]
+rerun = ["std", "ncomm-nodes/rerun", "ncomm-publishers-and-subscribers/rerun"]
+rerun-web-viewer = ["std", "rerun", "ncomm-nodes/rerun-web-viewer"]

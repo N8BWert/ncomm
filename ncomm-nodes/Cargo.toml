@@ -15,10 +15,13 @@ categories.workspace = true
 rerun = { workspace = true, optional = true }
 re_web_viewer_server = { workspace = true, optional = true }
 re_ws_comms = { workspace = true, optional = true }
-ncomm-core = { workspace = true }
-ncomm-publishers-and-subscribers = { workspace = true }
+ncomm-core = { workspace = true, default-features = false }
+ncomm-publishers-and-subscribers = { workspace = true, default-features = false }
 
 [features]
-default = []
-rerun = ["dep:rerun", "ncomm-publishers-and-subscribers/rerun"]
-rerun-web-viewer = ["rerun", "rerun/web_viewer", "dep:re_web_viewer_server", "dep:re_ws_comms"]
+default = ["std"]
+nostd = ["ncomm-core/nostd", "ncomm-publishers-and-subscribers/nostd"]
+alloc = ["nostd", "ncomm-core/alloc", "ncomm-publishers-and-subscribers/alloc"]
+std = ["ncomm-core/std", "ncomm-publishers-and-subscribers/std"]
+rerun = ["std", "dep:rerun", "ncomm-publishers-and-subscribers/rerun"]
+rerun-web-viewer = ["std", "rerun", "rerun/web_viewer", "dep:re_web_viewer_server", "dep:re_ws_comms"]

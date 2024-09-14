@@ -23,7 +23,7 @@ pub enum UdpClientServerError<Data: Packable> {
     /// An error with packing the data
     PackingError(PackingError),
     /// Request from an unknown client
-    UnknownRequester(Data),
+    UnknownRequester((Data, SocketAddr)),
     /// The client you are sending data to is unknown
     UnknownClient,
 }
@@ -71,6 +71,25 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
         Ok(())
     }
 
+    fn poll_for_response(
+        &mut self,
+    ) -> Result<Option<(Self::Request, Self::Response)>, Self::Error> {
+        let mut buffer = vec![0u8; Req::len() + Res::len()];
+        let (req, res) = match self.socket.recv(&mut buffer) {
+            Ok(_received) => (
+                Req::unpack(&buffer[..Req::len()]),
+                Res::unpack(&buffer[Req::len()..]),
+            ),
+            Err(_) => return Ok(None),
+        };
+
+        if let (Ok(req), Ok(res)) = (req, res) {
+            Ok(Some((req, res)))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Check the UDP socket for incoming Datagrams.
     ///
     /// Note: Incoming data will be in the form:
@@ -78,7 +97,7 @@ impl<Req: Packable, Res: Packable> Client for UdpClient<Req, Res> {
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
         let mut responses = Vec::new();
 
-        let mut buffer = vec![0u8; Res::len() + Res::len()];
+        let mut buffer = vec![0u8; Req::len() + Res::len()];
         loop {
             let (req, res) = match self.socket.recv(&mut buffer) {
                 Ok(_received) => (
@@ -152,6 +171,25 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
     type Key = K;
     type Error = UdpClientServerError<Req>;
 
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error> {
+        let mut buffer = vec![0u8; Req::len()];
+        let address = match self.socket.recv_from(&mut buffer) {
+            Ok((_request_size, address)) => address,
+            Err(_) => return Ok(None),
+        };
+
+        match Req::unpack(&buffer[..]) {
+            Ok(data) => {
+                if let Some((k, _)) = self.client_addresses.iter().find(|v| v.1 == address) {
+                    Ok(Some((k.clone(), data)))
+                } else {
+                    Err(UdpClientServerError::UnknownRequester((data, address)))
+                }
+            }
+            Err(err) => Err(UdpClientServerError::PackingError(err)),
+        }
+    }
+
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>> {
         let mut requests = Vec::new();
 
@@ -167,7 +205,7 @@ impl<Req: Packable, Res: Packable, K: Eq + Clone> Server for UdpServer<Req, Res,
                     if let Some((k, _)) = self.client_addresses.iter().find(|v| v.1 == address) {
                         requests.push(Ok((k.clone(), data)));
                     } else {
-                        requests.push(Err(UdpClientServerError::UnknownRequester(data)));
+                        requests.push(Err(UdpClientServerError::UnknownRequester((data, address))));
                     }
                 }
                 Err(err) => requests.push(Err(UdpClientServerError::PackingError(err))),
@@ -356,6 +394,48 @@ mod tests {
             let response = response.unwrap();
             assert_eq!(response.0, client_two_request);
             assert_eq!(response.1, client_two_response);
+        }
+    }
+
+    #[test]
+    fn test_udp_client_server_singular_send() {
+        let mut server: UdpServer<Request, Response, i32> = UdpServer::new_with(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7005)),
+            vec![(
+                0,
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7006)),
+            )],
+        )
+        .unwrap();
+
+        let mut client_one: UdpClient<Request, Response> = UdpClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7006)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7005)),
+        )
+        .unwrap();
+
+        let client_one_request = Request::new();
+        let client_one_response = Response::new(client_one_request.clone());
+
+        client_one.send_request(client_one_request).unwrap();
+
+        sleep(Duration::from_millis(50));
+
+        if let Ok(Some((k, request))) = server.poll_for_request() {
+            server
+                .send_response(k, request, client_one_response.clone())
+                .unwrap();
+        } else {
+            assert!(false, "Expected to receive request");
+        }
+
+        sleep(Duration::from_millis(50));
+
+        if let Ok(Some((request, response))) = client_one.poll_for_response() {
+            assert_eq!(request, client_one_request);
+            assert_eq!(response, client_one_response);
+        } else {
+            assert!(false, "Expected to receive response");
         }
     }
 }

@@ -7,12 +7,19 @@
 //!
 
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
+#[cfg(feature = "std")]
 pub mod local;
 
+#[cfg(feature = "std")]
 pub mod udp;
 
 pub mod tcp;
 
 #[cfg(feature = "rerun")]
 pub mod rerun;
+
+pub mod serial;

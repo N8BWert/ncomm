@@ -15,4 +15,5 @@ repository.workspace = true
 [features]
 default = ["std"]
 nostd = []
+alloc = []
 std = []

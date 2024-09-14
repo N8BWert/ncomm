@@ -9,6 +9,11 @@
 
 use crate::node::Node;
 
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(feature = "std")]
+use std::boxed::Box;
+
 /// The current state an executor is in.
 ///
 /// This should be taken into account whenever the start or update methods

@@ -15,18 +15,34 @@
 // To test the internal state of nodes, they need to be force
 // downcasted into their respective type.
 #![cfg_attr(test, feature(downcast_unchecked))]
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
+#[cfg(feature = "std")]
 pub mod simple_executor;
+#[cfg(feature = "std")]
 pub use simple_executor::SimpleExecutor;
 
+#[cfg(feature = "std")]
 pub mod threadpool_executor;
+#[cfg(feature = "std")]
 pub use threadpool_executor::ThreadPoolExecutor;
 
+#[cfg(feature = "std")]
 pub mod threaded_executor;
+#[cfg(feature = "std")]
+pub use threaded_executor::ThreadedExecutor;
 
+use core::cmp::{Ord, Ordering};
 use ncomm_core::node::Node;
-use std::cmp::{Ord, Ordering};
 
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec::Vec};
+#[cfg(feature = "std")]
+use std::{boxed::Box, vec::Vec};
+
+#[cfg(any(feature = "alloc", feature = "std"))]
 /// The NodeWrapper wraps nodes giving them a priority based on the timestamp
 /// of their next update.
 ///
@@ -38,6 +54,7 @@ pub(crate) struct NodeWrapper<ID: PartialEq> {
     pub node: Box<dyn Node<ID>>,
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<ID: PartialEq> NodeWrapper<ID> {
     /// Destroy the node wrapper returning the node it was wrapping.
     pub fn destroy(self) -> Box<dyn Node<ID>> {
@@ -45,26 +62,31 @@ impl<ID: PartialEq> NodeWrapper<ID> {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<ID: PartialEq> Ord for NodeWrapper<ID> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.priority.cmp(&other.priority).reverse()
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<ID: PartialEq> PartialOrd for NodeWrapper<ID> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<ID: PartialEq> PartialEq for NodeWrapper<ID> {
     fn eq(&self, other: &Self) -> bool {
         self.priority == other.priority
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl<ID: PartialEq> Eq for NodeWrapper<ID> {}
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 /// This method performs binary search insertion into the sorted vector
 /// `vec` with the node `node`.
 ///
