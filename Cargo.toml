@@ -40,14 +40,14 @@ categories = ["science::robotics"]
 
 [workspace.dependencies]
 # NComm
-ncomm = { path = "ncomm", version = "1.0.0" }
-ncomm-core = { path = "ncomm-core", version = "1.0.0" }
-ncomm-utils = { path = "ncomm-utils", version = "1.0.0" }
-ncomm-executors = { path = "ncomm-executors", version = "1.0.0" }
-ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.0.0" }
-ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.0.0" }
-ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.0.0" }
-ncomm-nodes = { path = "ncomm-nodes", version = "1.0.0" }
+ncomm = { path = "ncomm", version = "1.0.0", default-features = false }
+ncomm-core = { path = "ncomm-core", version = "1.0.0", default-features = false }
+ncomm-utils = { path = "ncomm-utils", version = "1.0.0", default-features = false }
+ncomm-executors = { path = "ncomm-executors", version = "1.0.0", default-features = false }
+ncomm-publishers-and-subscribers = { path = "ncomm-publishers-and-subscribers", version = "1.0.0", default-features = false }
+ncomm-clients-and-servers = { path = "ncomm-clients-and-servers", version = "1.0.0", default-features = false }
+ncomm-update-clients-and-servers = { path = "ncomm-update-clients-and-servers", version = "1.0.0", default-features = false }
+ncomm-nodes = { path = "ncomm-nodes", version = "1.0.0", default-features = false }
 
 # Outside Dependencies
 crossbeam = "0.8.4"
@@ -59,3 +59,4 @@ rand_distr = "0.4.3"
 rerun = "0.18.2"
 re_web_viewer_server = "0.18.2"
 re_ws_comms = "0.18.2"
+embedded-io = "0.6.1"

@@ -6,6 +6,11 @@
 //! update the client on.
 //!
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 /// A common abstraction for all NComm update clients
 pub trait UpdateClient {
     /// The type of data used as a request by the client
@@ -22,10 +27,21 @@ pub trait UpdateClient {
     #[allow(clippy::type_complexity)]
     fn send_request(&mut self, request: Self::Request) -> Result<(), Self::Error>;
 
+    /// Poll for a singular update from the server
+    #[allow(clippy::type_complexity)]
+    fn poll_for_update(&mut self) -> Result<Option<(Self::Request, Self::Update)>, Self::Error>;
+
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Poll for updates from the server
     #[allow(clippy::type_complexity)]
     fn poll_for_updates(&mut self) -> Vec<Result<(Self::Request, Self::Update), Self::Error>>;
 
+    /// Poll for a singular response from the server
+    #[allow(clippy::type_complexity)]
+    fn poll_for_response(&mut self)
+        -> Result<Option<(Self::Request, Self::Response)>, Self::Error>;
+
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Poll for responses from the server
     #[allow(clippy::type_complexity)]
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>>;
@@ -45,6 +61,11 @@ pub trait UpdateServer {
     /// to the update client
     type Error;
 
+    /// Check for a singular incoming request from the client
+    #[allow(clippy::type_complexity)]
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error>;
+
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Check for incoming requests from the client
     #[allow(clippy::type_complexity)]
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;

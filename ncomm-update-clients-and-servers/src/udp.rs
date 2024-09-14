@@ -86,6 +86,41 @@ impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
         Ok(())
     }
 
+    fn poll_for_update(&mut self) -> Result<Option<(Self::Request, Self::Update)>, Self::Error> {
+        let mut buffer = vec![0u8; Req::len() + std::cmp::max(Updt::len(), Res::len())];
+        loop {
+            let (req, updt) = match self.socket.recv(&mut buffer) {
+                Ok(received) => {
+                    if received - Req::len() == Updt::len() {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Updt::unpack(&buffer[Req::len()..]),
+                        )
+                    } else if received - Req::len() == Res::len() {
+                        let (req, res) = (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Res::unpack(&buffer[Req::len()..]),
+                        );
+
+                        if let (Ok(req), Ok(res)) = (req, res) {
+                            self.response_buffer.push(Ok((req, res)));
+                        }
+                        buffer.iter_mut().for_each(|v| *v = 0);
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            };
+
+            if let (Ok(req), Ok(updt)) = (req, updt) {
+                return Ok(Some((req, updt)));
+            }
+        }
+        Ok(None)
+    }
+
     fn poll_for_updates(&mut self) -> Vec<Result<(Self::Request, Self::Update), Self::Error>> {
         let mut updates = Vec::new();
         updates.append(&mut self.update_buffer);
@@ -108,6 +143,7 @@ impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
                         if let (Ok(req), Ok(res)) = (req, res) {
                             self.response_buffer.push(Ok((req, res)));
                         }
+                        buffer.iter_mut().for_each(|v| *v = 0);
                         continue;
                     } else {
                         (
@@ -122,9 +158,48 @@ impl<Req: Packable, Updt: Packable, Res: Packable> UpdateClient
             if let (Ok(req), Ok(updt)) = (req, updt) {
                 updates.push(Ok((req, updt)));
             }
+            buffer.iter_mut().for_each(|v| *v = 0);
         }
 
         updates
+    }
+
+    fn poll_for_response(
+        &mut self,
+    ) -> Result<Option<(Self::Request, Self::Response)>, Self::Error> {
+        let mut buffer = vec![0u8; Req::len() + std::cmp::max(Updt::len(), Res::len())];
+        loop {
+            let (req, res) = match self.socket.recv(&mut buffer) {
+                Ok(received) => {
+                    if received - Req::len() == Updt::len() {
+                        let (req, updt) = (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Updt::unpack(&buffer[Req::len()..]),
+                        );
+
+                        if let (Ok(req), Ok(updt)) = (req, updt) {
+                            self.update_buffer.push(Ok((req, updt)));
+                        }
+
+                        buffer.iter_mut().for_each(|v| *v = 0);
+                        continue;
+                    } else if received - Req::len() == Res::len() {
+                        (
+                            Req::unpack(&buffer[..Req::len()]),
+                            Res::unpack(&buffer[Req::len()..]),
+                        )
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            };
+
+            if let (Ok(req), Ok(res)) = (req, res) {
+                return Ok(Some((req, res)));
+            }
+        }
+        Ok(None)
     }
 
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
@@ -222,6 +297,27 @@ impl<Req: Packable + Clone, Updt: Packable, Res: Packable, K: Eq + Clone> Update
     type Response = Res;
     type Key = K;
     type Error = UdpUpdateClientServerError<Req>;
+
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error> {
+        let mut buffer = vec![0u8; Req::len()];
+        let address = match self.socket.recv_from(&mut buffer) {
+            Ok((_requset_size, address)) => address,
+            Err(_) => return Ok(None),
+        };
+
+        match Req::unpack(&buffer[..]) {
+            Ok(data) => {
+                if let Some((k, _)) = self.client_addresses.iter().find(|v| v.1 == address) {
+                    Ok(Some((k.clone(), data)))
+                } else {
+                    Err(UdpUpdateClientServerError::UnknownRequester((
+                        data, address,
+                    )))
+                }
+            }
+            Err(err) => Err(UdpUpdateClientServerError::PackingError(err)),
+        }
+    }
 
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>> {
         let mut requests = Vec::new();
@@ -515,6 +611,61 @@ mod tests {
             let response = response.unwrap();
             assert_eq!(response.0, client_two_request);
             assert_eq!(response.1, client_two_response);
+        }
+    }
+
+    #[test]
+    fn test_udp_update_client_server_singular_request() {
+        let mut server: UdpUpdateServer<Request, Update, Response, i32> =
+            UdpUpdateServer::new_with(
+                SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7008)),
+                vec![(
+                    0,
+                    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7009)),
+                )],
+            )
+            .unwrap();
+
+        let mut client_one: UdpUpdateClient<Request, Update, Response> = UdpUpdateClient::new(
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7009)),
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 7008)),
+        )
+        .unwrap();
+
+        let client_one_request = Request::new();
+        let client_one_update = Update::new(client_one_request.clone());
+        let client_one_response = Response::new(client_one_request.clone());
+
+        client_one.send_request(client_one_request).unwrap();
+
+        sleep(Duration::from_millis(50));
+
+        if let Ok(Some((client, request))) = server.poll_for_request() {
+            assert_eq!(request, client_one_request);
+            server
+                .send_update(client, &request, Update::new(request.clone()))
+                .unwrap();
+            server
+                .send_response(client, request, Response::new(request.clone()))
+                .unwrap();
+        } else {
+            assert!(false, "Expected a request");
+        }
+
+        sleep(Duration::from_millis(50));
+
+        if let Ok(Some((request, update))) = client_one.poll_for_update() {
+            assert_eq!(request, client_one_request);
+            assert_eq!(update, client_one_update);
+        } else {
+            assert!(false, "Expected an update");
+        }
+
+        if let Ok(Some((request, response))) = client_one.poll_for_response() {
+            assert_eq!(request, client_one_request);
+            assert_eq!(response, client_one_response);
+        } else {
+            assert!(false, "Expected a response");
         }
     }
 }

@@ -31,6 +31,15 @@ impl<Req, Res> Client for LocalClient<Req, Res> {
         Ok(())
     }
 
+    fn poll_for_response(
+        &mut self,
+    ) -> Result<Option<(Self::Request, Self::Response)>, Self::Error> {
+        match self.rx.try_recv() {
+            Ok(response) => Ok(Some(response)),
+            Err(_) => Ok(None),
+        }
+    }
+
     fn poll_for_responses(&mut self) -> Vec<Result<(Self::Request, Self::Response), Self::Error>> {
         let mut responses = Vec::new();
         for response in self.rx.try_iter() {
@@ -89,6 +98,15 @@ impl<Req, Res, K: Hash + Eq + Clone> Server for LocalServer<Req, Res, K> {
             }
         }
         requests
+    }
+
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error> {
+        for (k, (rx, _)) in self.client_map.iter() {
+            if let Ok(request) = rx.try_recv() {
+                return Ok(Some((k.clone(), request)));
+            }
+        }
+        Ok(None)
     }
 
     fn send_response(
@@ -153,6 +171,30 @@ mod tests {
             let Ok((request, response)) = response;
             assert_eq!(request, original_request);
             assert_eq!(response, original_response);
+        }
+    }
+
+    #[test]
+    fn test_local_client_server_single() {
+        let mut server = LocalServer::new();
+        let mut client = server.create_client(0u8);
+
+        let original_request = Request::new();
+        let original_response = Response::new(original_request);
+        client.send_request(original_request).unwrap();
+        if let Ok(Some((client, request))) = server.poll_for_request() {
+            assert_eq!(request, original_request);
+            server
+                .send_response(client, request, Response::new(request.clone()))
+                .unwrap()
+        } else {
+            assert!(false, "Expected to receive request");
+        }
+        if let Ok(Some((request, response))) = client.poll_for_response() {
+            assert_eq!(request, original_request);
+            assert_eq!(response, original_response);
+        } else {
+            assert!(false, "Expected to receive response");
         }
     }
 }

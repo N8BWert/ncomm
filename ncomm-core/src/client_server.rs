@@ -5,6 +5,11 @@
 //! that request something from them (in the form of a request).
 //!
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 /// A common abstraction for all NComm clients to allow for the creation
 /// of a common method of sending requests and receiving responses.
 pub trait Client {
@@ -19,6 +24,13 @@ pub trait Client {
     /// Send a request to the server this client is associated with
     fn send_request(&mut self, request: Self::Request) -> Result<(), Self::Error>;
 
+    /// Check for a singular response from the server containing the request and response
+    /// from the server
+    #[allow(clippy::type_complexity)]
+    fn poll_for_response(&mut self)
+        -> Result<Option<(Self::Request, Self::Response)>, Self::Error>;
+
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Check for a response from the server containing both the sent
     /// request and the response from the server
     #[allow(clippy::type_complexity)]
@@ -38,6 +50,11 @@ pub trait Server {
     /// the client
     type Error;
 
+    /// Check for an incoming request from the client
+    #[allow(clippy::type_complexity)]
+    fn poll_for_request(&mut self) -> Result<Option<(Self::Key, Self::Request)>, Self::Error>;
+
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Check for incoming requests from the client
     #[allow(clippy::type_complexity)]
     fn poll_for_requests(&mut self) -> Vec<Result<(Self::Key, Self::Request), Self::Error>>;
@@ -50,6 +67,7 @@ pub trait Server {
         response: Self::Response,
     ) -> Result<(), Self::Error>;
 
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Send a collection of responses to specified clients
     fn send_responses(
         &mut self,

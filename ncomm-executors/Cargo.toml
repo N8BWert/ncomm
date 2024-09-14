@@ -11,7 +11,13 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-crossbeam = { workspace = true }
-ncomm-core = { workspace = true }
-quanta = { workspace = true }
-threadpool = { workspace = true }
+crossbeam = { workspace = true, optional = true }
+ncomm-core = { workspace = true, default-features = false }
+quanta = { workspace = true, optional = true }
+threadpool = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+nostd = ["ncomm-core/nostd"]
+alloc = ["nostd", "ncomm-core/alloc"]
+std = ["ncomm-core/std", "dep:crossbeam", "dep:quanta", "dep:threadpool"]

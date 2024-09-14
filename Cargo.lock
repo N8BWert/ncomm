@@ -1551,6 +1551,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-io"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2829,6 +2835,7 @@ name = "ncomm-clients-and-servers"
 version = "1.0.0"
 dependencies = [
  "crossbeam",
+ "embedded-io",
  "ncomm-core",
  "ncomm-utils",
  "rand",
@@ -2864,6 +2871,7 @@ name = "ncomm-publishers-and-subscribers"
 version = "1.0.0"
 dependencies = [
  "crossbeam",
+ "embedded-io",
  "ncomm-core",
  "ncomm-utils",
  "quanta",
@@ -2876,6 +2884,7 @@ name = "ncomm-update-clients-and-servers"
 version = "1.0.0"
 dependencies = [
  "crossbeam",
+ "embedded-io",
  "ncomm-core",
  "ncomm-utils",
  "rand",
