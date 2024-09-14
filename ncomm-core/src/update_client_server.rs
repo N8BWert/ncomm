@@ -78,6 +78,7 @@ pub trait UpdateServer {
         update: Self::Update,
     ) -> Result<(), Self::Error>;
 
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Send a collection of updates to specified client
     #[allow(clippy::type_complexity)]
     fn send_updates(
@@ -98,6 +99,7 @@ pub trait UpdateServer {
         response: Self::Response,
     ) -> Result<(), Self::Error>;
 
+    #[cfg(any(feature = "alloc", feature = "std"))]
     /// Send a collection of responses to specific clients
     #[allow(clippy::type_complexity)]
     fn send_responses(
