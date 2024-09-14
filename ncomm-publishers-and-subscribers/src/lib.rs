@@ -17,6 +17,7 @@ pub mod local;
 #[cfg(feature = "std")]
 pub mod udp;
 
+#[cfg(feature = "std")]
 pub mod tcp;
 
 #[cfg(feature = "rerun")]
