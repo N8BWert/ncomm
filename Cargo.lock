@@ -2727,7 +2727,7 @@ dependencies = [
 
 [[package]]
 name = "minimal-client-server"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "ctrlc",
@@ -2739,7 +2739,7 @@ dependencies = [
 
 [[package]]
 name = "minimal-publisher-subscriber"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "ctrlc",
@@ -2750,7 +2750,7 @@ dependencies = [
 
 [[package]]
 name = "minimal-update-client-server"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "ctrlc",
@@ -2819,7 +2819,7 @@ checksum = "308d96db8debc727c3fd9744aac51751243420e46edf401010908da7f8d5e57c"
 
 [[package]]
 name = "ncomm"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "ncomm-clients-and-servers",
  "ncomm-core",
@@ -2832,7 +2832,7 @@ dependencies = [
 
 [[package]]
 name = "ncomm-clients-and-servers"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "embedded-io",
@@ -2843,11 +2843,11 @@ dependencies = [
 
 [[package]]
 name = "ncomm-core"
-version = "1.1.1"
+version = "1.1.2"
 
 [[package]]
 name = "ncomm-executors"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "ncomm-core",
@@ -2857,7 +2857,7 @@ dependencies = [
 
 [[package]]
 name = "ncomm-nodes"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "ncomm-core",
  "ncomm-publishers-and-subscribers",
@@ -2868,7 +2868,7 @@ dependencies = [
 
 [[package]]
 name = "ncomm-publishers-and-subscribers"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "embedded-io",
@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "ncomm-update-clients-and-servers"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "embedded-io",
@@ -2892,7 +2892,7 @@ dependencies = [
 
 [[package]]
 name = "ncomm-utils"
-version = "1.1.1"
+version = "1.1.2"
 
 [[package]]
 name = "ndarray"
@@ -5093,7 +5093,7 @@ dependencies = [
 
 [[package]]
 name = "rerun-publisher"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "crossbeam",
  "ctrlc",
