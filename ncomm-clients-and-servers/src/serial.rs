@@ -10,10 +10,10 @@ use embedded_io::{Error, Read, ReadReady, Write};
 use ncomm_core::client_server::{Client, Server};
 use ncomm_utils::packing::{Packable, PackingError};
 
-#[cfg(feature = "std")]
-use std::vec::Vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 /// An Error regarding sending and receiving data via serial
 #[derive(Debug)]
