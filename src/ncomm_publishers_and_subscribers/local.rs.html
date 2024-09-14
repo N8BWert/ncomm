@@ -395,6 +395,50 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! Local Publishers and Subscribers
 //!
@@ -416,46 +460,46 @@
 
 <span class="doccomment">/// Local Subscriber that utilizes a crossbeam multi subscriber channel
 /// to receive data from a local publisher
-</span><span class="kw">pub struct </span>LocalSubscriber&lt;Data: Clone&gt; {
+</span><span class="kw">pub struct </span>LocalSubscriber&lt;Data&gt; {
     <span class="doccomment">/// The receiver end of a crossbeam channel
-    </span>rx: Receiver&lt;Data&gt;,
+    </span>rx: Receiver&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The current data stored in the local subscriber
-    </span>data: <span class="prelude-ty">Option</span>&lt;Data&gt;,
+    </span>data: Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Subscriber <span class="kw">for </span>LocalSubscriber&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; Subscriber <span class="kw">for </span>LocalSubscriber&lt;Data&gt; {
     <span class="kw">type </span>Target = <span class="prelude-ty">Option</span>&lt;Data&gt;;
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(data) = <span class="self">self</span>.rx.try_iter().last() {
-            <span class="self">self</span>.data = <span class="prelude-val">Some</span>(data);
+            <span class="self">self</span>.data = data;
         }
 
-        <span class="kw-2">&amp;</span><span class="self">self</span>.data
+        <span class="self">self</span>.data.as_ref()
     }
 }
 
 <span class="doccomment">/// Local Subscriber that stores incoming data into a buffer for processing all at once
-</span><span class="kw">pub struct </span>LocalBufferedSubscriber&lt;Data: Clone&gt; {
+</span><span class="kw">pub struct </span>LocalBufferedSubscriber&lt;Data&gt; {
     <span class="doccomment">/// The receiver end of a crossbeam channel
-    </span>rx: Receiver&lt;Data&gt;,
+    </span>rx: Receiver&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The buffer of data stored in the subscriber
-    </span>buffer: Vec&lt;Data&gt;,
+    </span>buffer: Vec&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; LocalBufferedSubscriber&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; LocalBufferedSubscriber&lt;Data&gt; {
     <span class="doccomment">/// Clear the data buffer
     </span><span class="kw">pub fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.buffer.clear();
     }
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Subscriber <span class="kw">for </span>LocalBufferedSubscriber&lt;Data&gt; {
-    <span class="kw">type </span>Target = Vec&lt;Data&gt;;
+<span class="kw">impl</span>&lt;Data&gt; Subscriber <span class="kw">for </span>LocalBufferedSubscriber&lt;Data&gt; {
+    <span class="kw">type </span>Target = Vec&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;;
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">for </span>data <span class="kw">in </span><span class="self">self</span>.rx.try_iter() {
-            <span class="self">self</span>.buffer.push(data);
+            <span class="self">self</span>.buffer.push(data)
         }
 
         <span class="kw-2">&amp;</span><span class="self">self</span>.buffer
@@ -464,24 +508,24 @@
 
 <span class="doccomment">/// Local subscriber where data has a specific time-to-live and will decay
 /// after the lifetime has passed
-</span><span class="kw">pub struct </span>LocalTTLSubscriber&lt;Data: Clone&gt; {
+</span><span class="kw">pub struct </span>LocalTTLSubscriber&lt;Data&gt; {
     <span class="doccomment">/// The receiver end of a crossbeam channel
-    </span>rx: Receiver&lt;Data&gt;,
+    </span>rx: Receiver&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The current data stored in the local subscriber
-    </span>data: <span class="prelude-ty">Option</span>&lt;(Data, Instant)&gt;,
+    </span>data: <span class="prelude-ty">Option</span>&lt;(Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;, Instant)&gt;,
     <span class="doccomment">/// The time-to-live of a piece of data
     </span>ttl: Duration,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Subscriber <span class="kw">for </span>LocalTTLSubscriber&lt;Data&gt; {
-    <span class="kw">type </span>Target = <span class="prelude-ty">Option</span>&lt;(Data, Instant)&gt;;
+<span class="kw">impl</span>&lt;Data&gt; Subscriber <span class="kw">for </span>LocalTTLSubscriber&lt;Data&gt; {
+    <span class="kw">type </span>Target = <span class="prelude-ty">Option</span>&lt;(Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;, Instant)&gt;;
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(data) = <span class="self">self</span>.rx.try_iter().last() {
             <span class="self">self</span>.data = <span class="prelude-val">Some</span>((data, Instant::now()));
         }
 
-        <span class="kw">if </span><span class="self">self</span>.data.is_some()
+        <span class="kw">if </span><span class="self">self</span>.data.as_ref().is_some()
             &amp;&amp; Instant::now().duration_since(<span class="self">self</span>.data.as_ref().unwrap().<span class="number">1</span>) &gt; <span class="self">self</span>.ttl
         {
             <span class="self">self</span>.data = <span class="prelude-val">None</span>;
@@ -493,19 +537,19 @@
 
 <span class="doccomment">/// Local subscriber that maps incoming data to into a location in a hashmap
 /// allowing the subscriber to maintain a number of pieces of data at once.
-</span><span class="kw">pub struct </span>LocalMappedSubscriber&lt;Data: Clone, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt; {
+</span><span class="kw">pub struct </span>LocalMappedSubscriber&lt;Data, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt; {
     <span class="doccomment">/// The receiver end of a crossbeam channel
-    </span>rx: Receiver&lt;Data&gt;,
+    </span>rx: Receiver&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The current data stored in the local hashmap
-    </span>data: HashMap&lt;K, Data&gt;,
+    </span>data: HashMap&lt;K, Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The hash function used to map incoming data into the hashmap
     </span>hash: F,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt; Subscriber
+<span class="kw">impl</span>&lt;Data, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt; Subscriber
     <span class="kw">for </span>LocalMappedSubscriber&lt;Data, K, F&gt;
 {
-    <span class="kw">type </span>Target = HashMap&lt;K, Data&gt;;
+    <span class="kw">type </span>Target = HashMap&lt;K, Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;;
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">for </span>data <span class="kw">in </span><span class="self">self</span>.rx.try_iter() {
@@ -520,21 +564,21 @@
 <span class="doccomment">/// Local subscriber that maps incoming data to into a location in a hashmap
 /// while specifying a time-to-live for pieces of data contained in the
 /// hashmap
-</span><span class="kw">pub struct </span>LocalMappedTTLSubscriber&lt;Data: Clone, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt; {
+</span><span class="kw">pub struct </span>LocalMappedTTLSubscriber&lt;Data, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt; {
     <span class="doccomment">/// The receiver end of a crossbeam channel
-    </span>rx: Receiver&lt;Data&gt;,
+    </span>rx: Receiver&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;,
     <span class="doccomment">/// The current data stored in a hashmap
-    </span>data: HashMap&lt;K, (Data, Instant)&gt;,
+    </span>data: HashMap&lt;K, (Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;, Instant)&gt;,
     <span class="doccomment">/// The hash function used to map incoming data into the hashmap
     </span>hash: F,
     <span class="doccomment">/// The time-to-live of pieces of data in the hashmap
     </span>ttl: Duration,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt; Subscriber
+<span class="kw">impl</span>&lt;Data, K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt; Subscriber
     <span class="kw">for </span>LocalMappedTTLSubscriber&lt;Data, K, F&gt;
 {
-    <span class="kw">type </span>Target = HashMap&lt;K, (Data, Instant)&gt;;
+    <span class="kw">type </span>Target = HashMap&lt;K, (Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;, Instant)&gt;;
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">for </span>data <span class="kw">in </span><span class="self">self</span>.rx.try_iter() {
@@ -551,15 +595,17 @@
 
 <span class="doccomment">/// Local Publisher that utilizes a crossbeam multi publisher multi
 /// subscriber to send data
-</span><span class="kw">pub struct </span>LocalPublisher&lt;Data: Clone&gt; {
+</span><span class="kw">pub struct </span>LocalPublisher&lt;Data&gt; {
     <span class="doccomment">/// The transmit pipe that is used to send data to the subscriber
-    </span>txs: Arc&lt;Mutex&lt;Vec&lt;Sender&lt;Data&gt;&gt;&gt;&gt;,
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span>txs: Arc&lt;Mutex&lt;Vec&lt;Sender&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;&gt;&gt;&gt;,
     <span class="doccomment">/// The most recent data sent over the tx pipes so new subscribers will
     /// automatically have the most recent data
-    </span>data: Arc&lt;Mutex&lt;<span class="prelude-ty">Option</span>&lt;(Data, Instant)&gt;&gt;&gt;,
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span>data: Arc&lt;Mutex&lt;<span class="prelude-ty">Option</span>&lt;(Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;, Instant)&gt;&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Default <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; Default <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             txs: Arc::new(Mutex::new(Vec::new())),
@@ -568,7 +614,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; LocalPublisher&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; LocalPublisher&lt;Data&gt; {
     <span class="doccomment">/// Create a new local publisher
     </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::default()
@@ -587,7 +633,14 @@
             .as_ref()
             .map(|data| data.<span class="number">0</span>.clone());
 
-        LocalSubscriber { rx, data }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(data) = data {
+            LocalSubscriber { rx, data }
+        } <span class="kw">else </span>{
+            LocalSubscriber {
+                rx,
+                data: Arc::new(<span class="prelude-val">None</span>),
+            }
+        }
     }
 
     <span class="doccomment">/// Create a local buffered subscriber
@@ -632,7 +685,7 @@
     ///
     /// Note: This subscriber will only have access to them most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    </span><span class="kw">pub fn </span>subscribe_mapped&lt;K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt;(
+    </span><span class="kw">pub fn </span>subscribe_mapped&lt;K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         map: F,
     ) -&gt; LocalMappedSubscriber&lt;Data, K, F&gt; {
@@ -659,7 +712,7 @@
     ///
     /// Note: This subscriber will only have access to the most recent piece of data so
     /// do not expect that data sent a long time ago will be present in this subscriber's data
-    </span><span class="kw">pub fn </span>subscribe_mapped_ttl&lt;K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span>Data) -&gt; K&gt;(
+    </span><span class="kw">pub fn </span>subscribe_mapped_ttl&lt;K: Eq + Hash, F: Fn(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Data&gt;) -&gt; K&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         map: F,
         ttl: Duration,
@@ -686,7 +739,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Clone <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; Clone <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
     <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             txs: <span class="self">self</span>.txs.clone(),
@@ -695,11 +748,12 @@
     }
 }
 
-<span class="kw">impl</span>&lt;Data: Clone&gt; Publisher <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
+<span class="kw">impl</span>&lt;Data&gt; Publisher <span class="kw">for </span>LocalPublisher&lt;Data&gt; {
     <span class="kw">type </span>Data = Data;
-    <span class="kw">type </span>Error = SendError&lt;Data&gt;;
+    <span class="kw">type </span>Error = SendError&lt;Arc&lt;<span class="prelude-ty">Option</span>&lt;Data&gt;&gt;&gt;;
 
     <span class="kw">fn </span>publish(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="self">Self</span>::Data) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
+        <span class="kw">let </span>data = Arc::new(<span class="prelude-val">Some</span>(data));
         <span class="kw">let </span>txs = <span class="self">self</span>.txs.lock().unwrap();
         <span class="kw">for </span>tx <span class="kw">in </span>txs.iter() {
             tx.send(data.clone())<span class="question-mark">?</span>;
@@ -748,7 +802,14 @@
             publisher.publish(data.clone()).unwrap();
         }
 
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>subscriber.get(), datas);
+        <span class="macro">assert_eq!</span>(
+            subscriber
+                .get()
+                .iter()
+                .map(|v| v.unwrap().clone())
+                .collect::&lt;Vec&lt;TestData&gt;&gt;(),
+            datas
+        );
     }
 
     <span class="attr">#[test]
@@ -763,33 +824,60 @@
         std::thread::sleep(Duration::from_millis(<span class="number">100</span>));
 
         <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>short_subscriber.get(), <span class="prelude-val">None</span>);
-        <span class="macro">assert_eq!</span>(long_subscriber.get().unwrap().<span class="number">0</span>, data);
+        <span class="macro">assert_eq!</span>(
+            long_subscriber.get().as_ref().unwrap().<span class="number">0</span>.clone().unwrap(),
+            data
+        );
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_publish_mapped_subscriber() {
         <span class="kw">let </span><span class="kw-2">mut </span>publisher = LocalPublisher::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>subscriber = publisher.subscribe_mapped(|data: <span class="kw-2">&amp;</span>TestData| data.num);
+        <span class="kw">let </span><span class="kw-2">mut </span>subscriber =
+            publisher.subscribe_mapped(|data: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TestData&gt;| data.unwrap().num);
 
         <span class="kw">let </span>data = TestData::new();
         publisher.publish(data.clone()).unwrap();
 
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>subscriber.get().get(<span class="kw-2">&amp;</span>data.num).unwrap(), data);
+        <span class="macro">assert_eq!</span>(
+            subscriber
+                .get()
+                .get(<span class="kw-2">&amp;</span>data.num)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .clone(),
+            data
+        );
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_publish_mapped_ttl_subscriber() {
         <span class="kw">let </span><span class="kw-2">mut </span>publisher = LocalPublisher::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>short_subscriber =
-            publisher.subscribe_mapped_ttl(|data: <span class="kw-2">&amp;</span>TestData| data.num, Duration::from_nanos(<span class="number">1</span>));
-        <span class="kw">let </span><span class="kw-2">mut </span>long_subscriber =
-            publisher.subscribe_mapped_ttl(|data: <span class="kw-2">&amp;</span>TestData| data.num, Duration::from_secs(<span class="number">5</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>short_subscriber = publisher.subscribe_mapped_ttl(
+            |data: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TestData&gt;| data.unwrap().num,
+            Duration::from_nanos(<span class="number">1</span>),
+        );
+        <span class="kw">let </span><span class="kw-2">mut </span>long_subscriber = publisher.subscribe_mapped_ttl(
+            |data: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;TestData&gt;| data.unwrap().num,
+            Duration::from_secs(<span class="number">5</span>),
+        );
 
         <span class="kw">let </span>data = TestData::new();
         publisher.publish(data.clone()).unwrap();
 
         <span class="macro">assert_eq!</span>(short_subscriber.get().get(<span class="kw-2">&amp;</span>data.num), <span class="prelude-val">None</span>);
-        <span class="macro">assert_eq!</span>(long_subscriber.get().get(<span class="kw-2">&amp;</span>data.num).unwrap().<span class="number">0</span>, data);
+        <span class="macro">assert_eq!</span>(
+            long_subscriber
+                .get()
+                .get(<span class="kw-2">&amp;</span>data.num)
+                .unwrap()
+                .<span class="number">0
+                </span>.as_ref()
+                .unwrap()
+                .clone(),
+            data
+        );
     }
 }
 </code></pre></div></section></main></body></html>

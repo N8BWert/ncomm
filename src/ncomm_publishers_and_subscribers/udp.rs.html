@@ -488,6 +488,11 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! A Network Udp-Based Publisher and Subscriber
 //!
@@ -593,6 +598,7 @@
                 <span class="prelude-val">Ok</span>(_received) =&gt; Data::unpack(<span class="kw-2">&amp;</span>buffer[..]),
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
             };
+            buffer.iter_mut().for_each(|v| <span class="kw-2">*</span>v = <span class="number">0</span>);
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(found_data) = temp {
                 data = <span class="prelude-val">Some</span>(found_data);
             }
@@ -641,6 +647,7 @@
                 <span class="prelude-val">Ok</span>(_received) =&gt; Data::unpack(<span class="kw-2">&amp;</span>buffer[..]),
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
             };
+            buffer.iter_mut().for_each(|v| <span class="kw-2">*</span>v = <span class="number">0</span>);
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(found_data) = temp {
                 <span class="self">self</span>.buffer.push(found_data);
             }
@@ -686,6 +693,7 @@
                 <span class="prelude-val">Ok</span>(_received) =&gt; Data::unpack(<span class="kw-2">&amp;</span>buffer[..]),
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
             };
+            buffer.iter_mut().for_each(|v| <span class="kw-2">*</span>v = <span class="number">0</span>);
 
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(found_data) = temp {
                 data = <span class="prelude-val">Some</span>(found_data);
@@ -742,6 +750,7 @@
                 <span class="prelude-val">Ok</span>(_received) =&gt; Data::unpack(<span class="kw-2">&amp;</span>buffer[..]),
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
             };
+            buffer.iter_mut().for_each(|v| <span class="kw-2">*</span>v = <span class="number">0</span>);
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(found_data) = temp {
                 <span class="kw">let </span>label = (<span class="self">self</span>.hash)(<span class="kw-2">&amp;</span>found_data);
                 <span class="self">self</span>.data.insert(label, found_data);
@@ -786,18 +795,19 @@
 
     <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
         <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; Data::len()];
-        <span class="kw">let </span>now = Instant::now();
         <span class="kw">loop </span>{
             <span class="kw">let </span>temp = <span class="kw">match </span><span class="self">self</span>.rx.recv_from(<span class="kw-2">&amp;mut </span>buffer) {
                 <span class="prelude-val">Ok</span>(_received) =&gt; Data::unpack(<span class="kw-2">&amp;</span>buffer[..]),
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
             };
+            buffer.iter_mut().for_each(|v| <span class="kw-2">*</span>v = <span class="number">0</span>);
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(found_data) = temp {
                 <span class="kw">let </span>label = (<span class="self">self</span>.hash)(<span class="kw-2">&amp;</span>found_data);
-                <span class="self">self</span>.data.insert(label, (found_data, now));
+                <span class="self">self</span>.data.insert(label, (found_data, Instant::now()));
             }
         }
 
+        <span class="kw">let </span>now = Instant::now();
         <span class="self">self</span>.data.retain(|<span class="kw">_</span>, v| now.duration_since(v.<span class="number">1</span>) &lt;= <span class="self">self</span>.ttl);
 
         <span class="kw-2">&amp;</span><span class="self">self</span>.data

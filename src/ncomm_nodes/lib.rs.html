@@ -12,18 +12,18 @@
 <a href="#12" id="12">12</a>
 <a href="#13" id="13">13</a>
 <a href="#14" id="14">14</a>
-</pre></div><pre class="rust"><code><span class="kw">pub fn </span>add(left: u64, right: u64) -&gt; u64 {
-    left + right
-}
+</pre></div><pre class="rust"><code><span class="doccomment">//!
+//! Commonly used nodes for integrating NComm with other useful
+//! tools.
+//!
 
-<span class="attr">#[cfg(test)]
-</span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+</span><span class="attr">#![cfg_attr(not(feature = <span class="string">"std"</span>), no_std)]
+#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">extern crate </span>alloc;
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>it_works() {
-        <span class="kw">let </span>result = add(<span class="number">2</span>, <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(result, <span class="number">4</span>);
-    }
-}
+<span class="attr">#[deny(missing_docs)]
+#[cfg(feature = <span class="string">"rerun"</span>)]
+</span><span class="kw">pub mod </span>rerun;
+<span class="attr">#[cfg(feature = <span class="string">"rerun"</span>)]
+</span><span class="kw">pub use </span>rerun::RerunNode;
 </code></pre></div></section></main></body></html>

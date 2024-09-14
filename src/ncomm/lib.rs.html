@@ -80,6 +80,29 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! # NComm
 //!
@@ -133,6 +156,25 @@
 //!
 //! For our SensorFusionNode, the `Stop` state could involve saving the current state estimation to some log file so it can be used when the system begins again.
 //!
+//! ## Integrations
+//!
+//! Currently NComm is has integration with the following packages:
+//!
+//! * Rerun - NComm has integration with the Rerun data visualizer as both a publisher and node.  To enable Rerun integration add the feature "rerun" to ncomm, ncomm-nodes, or ncomm-publishers-and-subscribers.
+//!
+//! ## Features
+//!
+//! To allow NComm to have the possibility of being used on as many types of devices as possible I'm using a heavy dose of Rust features to conditionally compile parts of the crates.  Specifically, each crate in the NComm collection has the following features:
+//! * nostd - Use the nostd feature when running on a target that doesn't support the Rust standard library (i.e. resource constrained embedded devices)
+//! * alloc - Use the alloc feature when running ona target that doesn't support the Rust standard library but there is some global allocator available so allocating a bit of memory isn't out of the question.  As a note, this will almost always also include the nostd feature of the crate.  This is because it is impossible to really run Rust without the core library (i.e. no-std) so a lot of the bare necessities of the NComm crate come from the nostd compatibility.
+//! * std (default) - The full availability of the Rust standard library is at your disposal.
+//!
+//! Note: I don't think there is any reason to have both "alloc" and "nostd" selected at the same time so I would highly recommend doing that as I'm pretty sure weird things will happen.
+//!
+//! In addition to the above features, NComm also has the following feature:
+//! * rerun - Enable Rerun integration support (available in ncomm, ncomm-nodes, and ncomm-publishers-and-subscribers)
+//! * rerun-web-viewer - Enable the Rerun web viewer (available in ncomm-nodes)
+//!
 //! ## Why?
 //!
 //! Why NComm?  Well that's a great question.  I created NComm because I feel like Ros had the right idea it just executed on the idea poorly.  Specifically, I love the idea of Nodes, publishers and subscribers, clients and servers, and action clients and servers but their performance is just plainly laughable in Ros because all types of communication need to be able to be sent between C++ code and Python code.
@@ -146,7 +188,11 @@
 //! Currently, NComm is only available on Rust with the `std` toolchain.  This is fine, but I would love to have `no_std` versions of the communication primitives for embedded development.  However, I don't think it is likely I will make `no_std` executors and instead work on adding communication primitive support to current RTOS's like RTIC and Embassy (both of which much better than I could likely create on my own).  In general, I would encourage people to add anything they think is missing to this project.  I can already see a possibility for building secure network communication primitives and creating standard nodes for data visualization and logging so I encourage people to build whatever they see fit.
 //!
 
-</span><span class="kw">pub mod </span>prelude;
+</span><span class="attr">#![cfg_attr(not(feature = <span class="string">"std"</span>), no_std)]
+#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">extern crate </span>alloc;
+
+<span class="kw">pub mod </span>prelude;
 
 <span class="doccomment">/// NComm Clients and Servers
 </span><span class="kw">pub use </span>ncomm_clients_and_servers <span class="kw">as </span>client_servers;

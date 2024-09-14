@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["local","udp"]};
+window.SIDEBAR_ITEMS = {"mod":["local","serial","tcp","udp"]};

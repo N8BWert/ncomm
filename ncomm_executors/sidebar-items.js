@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["simple_executor","threadpool_executor"]};
+window.SIDEBAR_ITEMS = {"mod":["simple_executor","threaded_executor","threadpool_executor"]};

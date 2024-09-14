@@ -61,6 +61,24 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! NComm Client Server Traits.
 //!
@@ -68,7 +86,12 @@
 //! that request something from them (in the form of a request).
 //!
 
-/// A common abstraction for all NComm clients to allow for the creation
+</span><span class="attr">#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">use </span>alloc::vec::Vec;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">use </span>std::vec::Vec;
+
+<span class="doccomment">/// A common abstraction for all NComm clients to allow for the creation
 /// of a common method of sending requests and receiving responses.
 </span><span class="kw">pub trait </span>Client {
     <span class="doccomment">/// The type of data used as a request by the client
@@ -82,7 +105,14 @@
     <span class="doccomment">/// Send a request to the server this client is associated with
     </span><span class="kw">fn </span>send_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, request: <span class="self">Self</span>::Request) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
-    <span class="doccomment">/// Check for a response from the server containing both the sent
+    <span class="doccomment">/// Check for a singular response from the server containing the request and response
+    /// from the server
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>poll_for_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>)
+        -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Response)&gt;, <span class="self">Self</span>::Error&gt;;
+
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Check for a response from the server containing both the sent
     /// request and the response from the server
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>poll_for_responses(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Response), <span class="self">Self</span>::Error&gt;&gt;;
@@ -101,7 +131,12 @@
     /// the client
     </span><span class="kw">type </span>Error;
 
-    <span class="doccomment">/// Check for incoming requests from the client
+    <span class="doccomment">/// Check for an incoming request from the client
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>poll_for_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(<span class="self">Self</span>::Key, <span class="self">Self</span>::Request)&gt;, <span class="self">Self</span>::Error&gt;;
+
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Check for incoming requests from the client
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>poll_for_requests(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>::Key, <span class="self">Self</span>::Request), <span class="self">Self</span>::Error&gt;&gt;;
 
@@ -113,7 +148,8 @@
         response: <span class="self">Self</span>::Response,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
-    <span class="doccomment">/// Send a collection of responses to specified clients
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Send a collection of responses to specified clients
     </span><span class="kw">fn </span>send_responses(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>responses: Vec&lt;(<span class="self">Self</span>::Key, <span class="self">Self</span>::Request, <span class="self">Self</span>::Response)&gt;,

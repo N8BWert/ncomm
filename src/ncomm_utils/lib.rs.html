@@ -10,6 +10,8 @@
 <a href="#10" id="10">10</a>
 <a href="#11" id="11">11</a>
 <a href="#12" id="12">12</a>
+<a href="#13" id="13">13</a>
+<a href="#14" id="14">14</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! Utilities for NComm
 //!
@@ -18,8 +20,10 @@
 //! are still useful for developing applications utilizing NComm.
 //!
 
-</span><span class="attr">#![no_std]
-#![deny(missing_docs)]
+</span><span class="attr">#![deny(missing_docs)]
+#![cfg_attr(not(feature = <span class="string">"std"</span>), no_std)]
+#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">extern crate </span>alloc;
 
-</span><span class="kw">pub mod </span>packing;
+<span class="kw">pub mod </span>packing;
 </code></pre></div></section></main></body></html>

@@ -71,6 +71,37 @@
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! NComm-Executors provides a set of executors (kind of like schedulers)
 //! for nodes.
@@ -88,54 +119,85 @@
 </span><span class="comment">// To test the internal state of nodes, they need to be force
 // downcasted into their respective type.
 </span><span class="attr">#![cfg_attr(test, feature(downcast_unchecked))]
+#![cfg_attr(not(feature = <span class="string">"std"</span>), no_std)]
+#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">extern crate </span>alloc;
 
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
 </span><span class="kw">pub mod </span>simple_executor;
-<span class="kw">pub use </span>simple_executor::SimpleExecutor;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub use </span>simple_executor::SimpleExecutor;
 
-<span class="kw">pub mod </span>threadpool_executor;
-<span class="kw">pub use </span>threadpool_executor::ThreadPoolExecutor;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub mod </span>threadpool_executor;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub use </span>threadpool_executor::ThreadPoolExecutor;
 
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub mod </span>threaded_executor;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">pub use </span>threaded_executor::ThreadedExecutor;
+
+<span class="kw">use </span>core::cmp::{Ord, Ordering};
 <span class="kw">use </span>ncomm_core::node::Node;
-<span class="kw">use </span>std::cmp::{Ord, Ordering};
 
-<span class="doccomment">/// The NodeWrapper wraps nodes giving them a priority based on the timestamp
+<span class="attr">#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">use </span>alloc::{boxed::Box, vec::Vec};
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">use </span>std::{boxed::Box, vec::Vec};
+
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="doccomment">/// The NodeWrapper wraps nodes giving them a priority based on the timestamp
 /// of their next update.
 ///
 /// This ensures that nodes are updated at the correct time
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>NodeWrapper {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>NodeWrapper&lt;ID: PartialEq&gt; {
     <span class="doccomment">/// The timestamp of the nodes next update
     </span><span class="kw">pub </span>priority: u128,
     <span class="doccomment">/// The nde this NodeWrapper is wrapping around
-    </span><span class="kw">pub </span>node: Box&lt;<span class="kw">dyn </span>Node&gt;,
+    </span><span class="kw">pub </span>node: Box&lt;<span class="kw">dyn </span>Node&lt;ID&gt;&gt;,
 }
 
-<span class="kw">impl </span>Ord <span class="kw">for </span>NodeWrapper {
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="kw">impl</span>&lt;ID: PartialEq&gt; NodeWrapper&lt;ID&gt; {
+    <span class="doccomment">/// Destroy the node wrapper returning the node it was wrapping.
+    </span><span class="kw">pub fn </span>destroy(<span class="self">self</span>) -&gt; Box&lt;<span class="kw">dyn </span>Node&lt;ID&gt;&gt; {
+        <span class="self">self</span>.node
+    }
+}
+
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="kw">impl</span>&lt;ID: PartialEq&gt; Ord <span class="kw">for </span>NodeWrapper&lt;ID&gt; {
     <span class="kw">fn </span>cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Ordering {
         <span class="self">self</span>.priority.cmp(<span class="kw-2">&amp;</span>other.priority).reverse()
     }
 }
 
-<span class="kw">impl </span>PartialOrd <span class="kw">for </span>NodeWrapper {
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="kw">impl</span>&lt;ID: PartialEq&gt; PartialOrd <span class="kw">for </span>NodeWrapper&lt;ID&gt; {
     <span class="kw">fn </span>partial_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ordering&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.cmp(other))
     }
 }
 
-<span class="kw">impl </span>PartialEq <span class="kw">for </span>NodeWrapper {
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="kw">impl</span>&lt;ID: PartialEq&gt; PartialEq <span class="kw">for </span>NodeWrapper&lt;ID&gt; {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
         <span class="self">self</span>.priority == other.priority
     }
 }
 
-<span class="kw">impl </span>Eq <span class="kw">for </span>NodeWrapper {}
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="kw">impl</span>&lt;ID: PartialEq&gt; Eq <span class="kw">for </span>NodeWrapper&lt;ID&gt; {}
 
-<span class="doccomment">/// This method performs binary search insertion into the sorted vector
+<span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+</span><span class="doccomment">/// This method performs binary search insertion into the sorted vector
 /// `vec` with the node `node`.
 ///
 /// This is just a convenience method I found myself using a ton so I decided
 /// to make it its own method.
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_into(vec: <span class="kw-2">&amp;mut </span>Vec&lt;NodeWrapper&gt;, node: NodeWrapper) {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_into&lt;ID: PartialEq&gt;(vec: <span class="kw-2">&amp;mut </span>Vec&lt;NodeWrapper&lt;ID&gt;&gt;, node: NodeWrapper&lt;ID&gt;) {
     <span class="comment">// If another node is found with the same priority, insert the node after that
     // node.  Otherwise, insert the node into the position it should be in in the
     // sorted vector

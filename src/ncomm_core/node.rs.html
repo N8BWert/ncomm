@@ -33,6 +33,12 @@
 <a href="#33" id="33">33</a>
 <a href="#34" id="34">34</a>
 <a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! A Singular Unit of Work.
 //!
@@ -46,7 +52,13 @@
 
 /// A Node represents a singular process that performs some singular
 /// purpose
-</span><span class="kw">pub trait </span>Node: Send {
+///
+/// Nodes should also all be given unique IDs so that they can be identified as
+/// trait objects.
+</span><span class="kw">pub trait </span>Node&lt;ID: PartialEq&gt;: Send {
+    <span class="doccomment">/// Return the node's ID
+    </span><span class="kw">fn </span>get_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ID;
+
     <span class="doccomment">/// Return the node's update rate (in us)
     </span><span class="kw">fn </span>get_update_delay_us(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128;
 

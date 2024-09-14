@@ -89,6 +89,27 @@
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! NComm Update Server and Client.
 //!
@@ -97,7 +118,12 @@
 //! update the client on.
 //!
 
-/// A common abstraction for all NComm update clients
+</span><span class="attr">#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">use </span>alloc::vec::Vec;
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+</span><span class="kw">use </span>std::vec::Vec;
+
+<span class="doccomment">/// A common abstraction for all NComm update clients
 </span><span class="kw">pub trait </span>UpdateClient {
     <span class="doccomment">/// The type of data used as a request by the client
     </span><span class="kw">type </span>Request;
@@ -113,11 +139,22 @@
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>send_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, request: <span class="self">Self</span>::Request) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
 
-    <span class="doccomment">/// Poll for updates from the server
+    <span class="doccomment">/// Poll for a singular update from the server
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>poll_for_update(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Update)&gt;, <span class="self">Self</span>::Error&gt;;
+
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Poll for updates from the server
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>poll_for_updates(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Update), <span class="self">Self</span>::Error&gt;&gt;;
 
-    <span class="doccomment">/// Poll for responses from the server
+    <span class="doccomment">/// Poll for a singular response from the server
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>poll_for_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>)
+        -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Response)&gt;, <span class="self">Self</span>::Error&gt;;
+
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Poll for responses from the server
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>poll_for_responses(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>::Request, <span class="self">Self</span>::Response), <span class="self">Self</span>::Error&gt;&gt;;
 }
@@ -136,7 +173,12 @@
     /// to the update client
     </span><span class="kw">type </span>Error;
 
-    <span class="doccomment">/// Check for incoming requests from the client
+    <span class="doccomment">/// Check for a singular incoming request from the client
+    </span><span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>poll_for_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(<span class="self">Self</span>::Key, <span class="self">Self</span>::Request)&gt;, <span class="self">Self</span>::Error&gt;;
+
+    <span class="attr">#[cfg(any(feature = <span class="string">"alloc"</span>, feature = <span class="string">"std"</span>))]
+    </span><span class="doccomment">/// Check for incoming requests from the client
     </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>poll_for_requests(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>::Key, <span class="self">Self</span>::Request), <span class="self">Self</span>::Error&gt;&gt;;
 

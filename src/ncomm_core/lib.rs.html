@@ -20,6 +20,11 @@
 <a href="#20" id="20">20</a>
 <a href="#21" id="21">21</a>
 <a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//!
 //! Ncomm-Core is a collection of traits that layout the core of the
 //! ncomm robotics framework.
@@ -27,12 +32,17 @@
 
 </span><span class="attr">#![deny(unsafe_code)]
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = <span class="string">"std"</span>), no_std)]
+#[cfg(feature = <span class="string">"alloc"</span>)]
+</span><span class="kw">extern crate </span>alloc;
 
-</span><span class="kw">pub mod </span>node;
+<span class="kw">pub mod </span>node;
 <span class="kw">pub use </span>node::Node;
 
-<span class="kw">pub mod </span>executor;
-<span class="kw">pub use </span>executor::{Executor, ExecutorState};
+<span class="attr">#[cfg(any(feature = <span class="string">"std"</span>, feature = <span class="string">"alloc"</span>))]
+</span><span class="kw">pub mod </span>executor;
+<span class="attr">#[cfg(any(feature = <span class="string">"std"</span>, feature = <span class="string">"alloc"</span>))]
+</span><span class="kw">pub use </span>executor::{Executor, ExecutorState};
 
 <span class="kw">pub mod </span>publisher_subscriber;
 <span class="kw">pub use </span>publisher_subscriber::{Publisher, Subscriber};
