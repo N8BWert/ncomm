@@ -9,7 +9,7 @@
 #![deny(missing_docs)]
 
 use ncomm_core::Executor;
-use ncomm_executors::SimpleExecutor;
+use ncomm_executors::ThreadPoolExecutor;
 
 use crossbeam::channel::unbounded;
 
@@ -63,7 +63,8 @@ fn main() {
     ctrlc::set_handler(move || tx.send(true).expect("Unable to send data"))
         .expect("Error setting Ctrl-C handler");
 
-    let mut executor = SimpleExecutor::new_with(
+    let mut executor = ThreadPoolExecutor::new_with(
+        3,
         rx,
         vec![Box::new(update_client_node), Box::new(update_server_node)],
     );

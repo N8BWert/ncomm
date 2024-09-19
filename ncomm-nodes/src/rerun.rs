@@ -43,8 +43,6 @@ pub struct RerunNode<
     id: Id,
     /// The rerun recording stream
     stream: RecordingStream,
-    /// How often the rerun data should be saved an output file stream
-    save_delay_us: u128,
     /// The name of the file to save the collected data to
     output_path: Option<Path>,
 }
@@ -55,7 +53,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
     /// Create a new Rerun node that logs to a specified path on the system
     pub fn new(
         application_id: impl Into<ApplicationId>,
-        save_delay_us: u128,
         output_path: Path,
         id: Id,
     ) -> Result<Self, RecordingStreamError> {
@@ -64,7 +61,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         Ok(Self {
             id,
             stream,
-            save_delay_us,
             output_path: None,
         })
     }
@@ -72,7 +68,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
     /// Create a new Rerun node that logs to the default remote Rerun server
     pub fn new_remote_default(
         application_id: impl Into<ApplicationId>,
-        save_delay_us: u128,
         output_path: Option<Path>,
         id: Id,
     ) -> Result<Self, RecordingStreamError> {
@@ -81,7 +76,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         Ok(Self {
             id,
             stream,
-            save_delay_us,
             output_path,
         })
     }
@@ -91,7 +85,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         application_id: impl Into<ApplicationId>,
         address: SocketAddr,
         flush_timeout: Option<Duration>,
-        save_delay_us: u128,
         output_path: Option<Path>,
         id: Id,
     ) -> Result<Self, RecordingStreamError> {
@@ -101,7 +94,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         Ok(Self {
             id,
             stream,
-            save_delay_us,
             output_path,
         })
     }
@@ -109,7 +101,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
     /// Create a new Rerun node that launches a new local Rerun viewer with default options when created
     pub fn new_rerun_spawn(
         application_id: impl Into<ApplicationId>,
-        save_delay_us: u128,
         output_path: Option<Path>,
         id: Id,
     ) -> Result<Self, RecordingStreamError> {
@@ -118,7 +109,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         Ok(Self {
             id,
             stream,
-            save_delay_us,
             output_path,
         })
     }
@@ -132,7 +122,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         ws_port: RerunServerPort,
         server_memory_limit: MemoryLimit,
         open_browser: bool,
-        save_delay_us: u128,
         output_path: Option<Path>,
         id: Id,
     ) -> Result<Self, RecordingStreamError> {
@@ -147,7 +136,6 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
         Ok(Self {
             id,
             stream,
-            save_delay_us,
             output_path,
         })
     }
@@ -183,14 +171,12 @@ impl<Id: PartialEq + Clone + Send + 'static, Path: Into<PathBuf> + Clone + Send 
     }
 
     fn get_update_delay_us(&self) -> u128 {
-        self.save_delay_us
+        10_000_000
     }
 
     fn start(&mut self) {
         self.stream.connect();
     }
-
-    fn update(&mut self) {}
 
     fn shutdown(&mut self) {
         if let Some(path) = self.output_path.as_ref() {

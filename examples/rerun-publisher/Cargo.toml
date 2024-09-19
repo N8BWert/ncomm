@@ -14,10 +14,10 @@ categories.workspace = true
 [dependencies]
 crossbeam = { workspace = true }
 ctrlc = { workspace = true }
-ncomm-core = { workspace = true }
-ncomm-executors = { workspace = true }
-ncomm-nodes = { workspace = true, features = ["rerun"] }
-ncomm-publishers-and-subscribers = { workspace = true }
+ncomm-core = { workspace = true, features = ["std"] }
+ncomm-executors = { workspace = true, features = ["std"] }
+ncomm-nodes = { workspace = true, features = ["std", "rerun"] }
+ncomm-publishers-and-subscribers = { workspace = true, features = ["std", "rerun"] }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rerun = { workspace = true }
