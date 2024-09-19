@@ -72,7 +72,7 @@
 //!
 //! ## API Documentation
 //!
-//!The API documentation for NComm can be found on [crates.io](https://crates.io/crates/ncomm) for release versions.
+//!The API documentation for NComm can be found on [docs.rs](https://docs.rs/ncomm/1.1.3/ncomm/) for release versions.
 //!To view the API documentation for the current dev version of NComm, clone the repo and run:
 //!```sh
 //! cargo doc --no-deps
