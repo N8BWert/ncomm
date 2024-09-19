@@ -12,9 +12,9 @@ authors.workspace = true
 categories.workspace = true
 
 [dependencies]
-ncomm-core = { workspace = true }
-ncomm-executors = { workspace = true }
-ncomm-clients-and-servers = { workspace = true }
+ncomm-core = { workspace = true, features=["std"] }
+ncomm-executors = { workspace = true, features=["std"] }
+ncomm-clients-and-servers = { workspace = true, features=["std"] }
 crossbeam = { workspace = true }
 ctrlc = { workspace = true }
 rand = { workspace = true }

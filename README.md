@@ -50,11 +50,44 @@ The shutdown state is used to clean up any necessary work that was started durin
 
 For our SensorFusionNode, the `Stop` state could involve saving the current state estimation to some log file so it can be used when the system begins again.
 
+## Getting Started
+
+To get started create a new rust binary crate via:
+```sh
+cargo new --bin
+```
+
+Then, add ncomm as a dependency by running:
+```sh
+cargo add ncomm
+```
+
+This will add ncomm with all standard library features enabled.  Currently, this is the most complete version of NComm, but I will be adding more support to no_std and alloc environments in the future, in which case you can use NComm in those environments by instead running the following:
+```sh
+# for no_std
+cargo add ncomm --default-features=false --features=nostd
+# or for alloc (which automatically also includes no_std)
+cargo add ncomm --default-features=false --features=alloc
+```
+
+## API Documentation
+
+The API documentation for NComm can be found on [crates.io](https://crates.io/crates/ncomm) for release versions.
+
+To view the API documentation for the current dev version of NComm, clone the repo and run:
+```sh
+cargo doc --no-deps
+```
+
 ## Integrations
 
 Currently NComm is has integration with the following packages:
 
 * Rerun - NComm has integration with the Rerun data visualizer as both a publisher and node.  To enable Rerun integration add the feature "rerun" to ncomm, ncomm-nodes, or ncomm-publishers-and-subscribers.
+
+## Examples
+
+NComm has a number of example projects to show just a small amount of what NComm can do.  The documentation for these examples can be found [here](./examples/README.md), or by navigating to the [examples](./examples/) folder.
 
 ## Features
 
@@ -76,6 +109,14 @@ Why NComm?  Well that's a great question.  I created NComm because I feel like R
 In addition, I feel like the split of the project across Python and C++ is necessitated by the verbosity of C++ which quickly leads to a split between software developers between the C++ and Python stack.  Additionally, Rust can facilitate incredibly nice zero-cost abstraction that makes it significantly less verbose than C++ while maintaining equal-to-better performance.
 
 Every Rust project would also be amiss if it didn't mention something about memory safety so here's that part.  Rust is memory-safe and thread-safe by design (and by association so is NComm).  This means that with NComm you are very unlikely to encounter NREs and other common pitfalls that significantly impede the progress of C++ development.  NComm is also natively thread-safe so on multi-core systems NComm can often execute with significant performance improvements as more cores are added.
+
+## Projects Using NComm
+
+As NComm grows, I'd like to keep this README updated with links to any projects that use NComm both so new users can see how to use NComm in real projects and because I think its cool to highlight interesting projects.
+
+The following projects use NComm:
+
+* RoboJackets [robocup-base-station](https://github.com/RoboJackets/robocup-base-station) (NComm 0.4.1) - The RoboJackets robocup-base-station runs on a Raspberry Pi and translates commands to and from a team of autonomous soccer playing robots.
 
 ## Future
 

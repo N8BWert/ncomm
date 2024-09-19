@@ -21,7 +21,7 @@ ncomm-update-clients-and-servers = { workspace = true, default-features = false 
 ncomm-nodes = { workspace = true, default-features = false }
 
 [features]
-default = []
+default = ["std"]
 nostd = [
     "ncomm-core/nostd",
     "ncomm-utils/nostd",

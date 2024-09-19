@@ -37,7 +37,6 @@ fn main() {
     println!("Creating Rerun Node");
     let mut rerun_node = RerunNode::new_rerun_spawn(
         "ncomm-example-project",
-        1_000_000,
         Some("ncomm-example.rrd"),
         NodeIdentifier::RerunNode,
     )

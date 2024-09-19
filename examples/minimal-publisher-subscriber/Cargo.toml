@@ -12,8 +12,8 @@ authors.workspace = true
 categories.workspace = true
 
 [dependencies]
-ncomm-core = { workspace = true }
-ncomm-executors = { workspace = true }
-ncomm-publishers-and-subscribers = { workspace = true }
+ncomm-core = { workspace = true, features = ["std"] }
+ncomm-executors = { workspace = true, features = ["std"] }
+ncomm-publishers-and-subscribers = { workspace = true, features = ["std"] }
 crossbeam = { workspace = true }
 ctrlc = { workspace = true }
